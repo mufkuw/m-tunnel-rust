@@ -48,11 +48,23 @@ fn parse_config(path: &PathBuf) -> Result<Vec<Tunnel>> {
             ));
         };
 
-        let parts: Vec<_> = rest.split(" to ").collect();
-        if parts.len() != 2 {
-            return Err(anyhow!("Line {}: invalid format", i + 1));
-        }
+        let parts: Vec<_> = match direction {
+            TunnelDirection::Receive => rest.split(" from ").collect(),
+            TunnelDirection::Send => rest.split(" to ").collect(),
+        };
 
+        if parts.len() != 2 {
+            return Err(anyhow!(
+                "Line {}: invalid format. Expected '{}' keyword for {:?}",
+                i + 1,
+                if direction == TunnelDirection::Receive {
+                    "from"
+                } else {
+                    "to"
+                },
+                direction
+            ));
+        }
         let (from_host, from_port) = parse_host_port(parts[0].trim())?;
         let (to_host, to_port) = parse_host_port(parts[1].trim())?;
 
