@@ -65,8 +65,20 @@ fn parse_config(path: &PathBuf) -> Result<Vec<Tunnel>> {
                 direction
             ));
         }
-        let (from_host, from_port) = parse_host_port(parts[0].trim())?;
-        let (to_host, to_port) = parse_host_port(parts[1].trim())?;
+
+        let (from_host, from_port, to_host, to_port) = match direction {
+            TunnelDirection::Send => {
+                let (from_host, from_port) = parse_host_port(parts[0].trim())?;
+                let (to_host, to_port) = parse_host_port(parts[1].trim())?;
+                (from_host, from_port, to_host, to_port)
+            }
+            TunnelDirection::Receive => {
+                // Reverse the order for receive
+                let (to_host, to_port) = parse_host_port(parts[0].trim())?;
+                let (from_host, from_port) = parse_host_port(parts[1].trim())?;
+                (from_host, from_port, to_host, to_port)
+            }
+        };
 
         tunnels.push(Tunnel {
             direction,
