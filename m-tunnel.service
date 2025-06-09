@@ -1,0 +1,13 @@
+[Unit]
+Description=MTunnel Rust SSH Tunnel Service
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/m-tunnel
+Restart=always
+Environment=RUST_LOG=info
+WorkingDirectory=/opt/m-tunnel
+User=youruser
+
+[Install]
+WantedBy=multi-user.target

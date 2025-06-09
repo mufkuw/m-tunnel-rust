@@ -1,0 +1,16 @@
+[package]
+name = "m-tunnel-rust"
+version = "1.0.0"
+authors = ["Muffaddal Kalla <mufkuw@gmail.com>"]
+edition = "2021"
+description = "A Rust-based SSH tunnel utility for forward and reverse port forwarding"
+license = "MIT"
+repository = "https://github.com/mufkuw/m-tunnel-rust"
+
+[dependencies]
+anyhow = "1"
+dotenvy = "0.15"
+log = "0.4"
+env_logger = "0.11.8"
+tokio = { version = "1", features = ["full"] }
+ssh2 = "0.9"
