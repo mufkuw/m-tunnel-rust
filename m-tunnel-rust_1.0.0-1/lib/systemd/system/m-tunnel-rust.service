@@ -1,0 +1,12 @@
+[Unit]
+Description=A Rust-based SSH tunnel utility for forward and reverse port forwarding
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/m-tunnel-rust
+Restart=always
+User=nobody
+Group=nogroup
+
+[Install]
+WantedBy=multi-user.target

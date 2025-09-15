@@ -1,0 +1,6 @@
+#!/bin/bash
+set -e
+systemctl daemon-reexec || true
+systemctl daemon-reload
+systemctl enable m-tunnel-rust.service
+systemctl start m-tunnel-rust.service

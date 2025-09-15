@@ -1,0 +1,5 @@
+#!/bin/bash
+set -e
+systemctl stop m-tunnel-rust.service || true
+systemctl disable m-tunnel-rust.service || true
+systemctl daemon-reload
