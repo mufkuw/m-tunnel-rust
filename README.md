@@ -16,9 +16,13 @@ A lightweight and production-ready SSH tunnel utility in Rust.
 2. Create `.env`:
 
 SSH_HOST=example.com
+
 SSH_PORT=22
+
 SSH_USER=root
+
 SSH_PRIVATE_KEY=path/to/key.pem
+
 
 markdown
 Copy
