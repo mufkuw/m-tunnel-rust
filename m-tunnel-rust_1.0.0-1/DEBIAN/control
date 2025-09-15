@@ -5,3 +5,6 @@ Priority: optional
 Architecture: amd64
 Maintainer: Muffaddal Kalla <mufkuw@gmail.com>
 Description: A Rust-based SSH tunnel utility for forward and reverse port forwarding
+ .
+ SSH tunnel management utility with configuration files
+ organized in /etc/m-tunnel/ following Linux FHS standards.
