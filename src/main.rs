@@ -73,7 +73,6 @@ fn parse_config(path: &PathBuf) -> Result<Vec<Tunnel>> {
                 (from_host, from_port, to_host, to_port)
             }
             TunnelDirection::Receive => {
-                // Reverse the order for receive
                 let (to_host, to_port) = parse_host_port(parts[0].trim())?;
                 let (from_host, from_port) = parse_host_port(parts[1].trim())?;
                 (from_host, from_port, to_host, to_port)
@@ -106,33 +105,33 @@ fn parse_host_port(s: &str) -> Result<(String, u16)> {
     Ok((host, port))
 }
 
-fn build_ssh_command(tunnel: &Tunnel, ssh_user: &str, ssh_host: &str, ssh_key: &str) -> Command {
+fn build_ssh_command(
+    tunnel: &Tunnel,
+    ssh_user: &str,
+    ssh_host: &str,
+    ssh_key: &str,
+    ssh_port: u16,
+) -> Command {
     let mut cmd = Command::new("ssh");
     cmd.arg("-i").arg(ssh_key);
+    cmd.arg("-p").arg(ssh_port.to_string());
     cmd.arg("-vv");
     cmd.arg("-o").arg("StrictHostKeyChecking=no");
     cmd.arg("-o").arg("ExitOnForwardFailure=yes");
     cmd.arg("-N");
 
+    let spec = format!(
+        "{}:{}:{}",
+        tunnel.from_host,
+        tunnel.from_port,
+        format!("{}:{}", tunnel.to_host, tunnel.to_port)
+    );
+
     match tunnel.direction {
         TunnelDirection::Receive => {
-            // local port forward
-            let spec = format!(
-                "{}:{}:{}",
-                tunnel.from_host,
-                tunnel.from_port,
-                format!("{}:{}", tunnel.to_host, tunnel.to_port)
-            );
             cmd.arg("-L").arg(spec);
         }
         TunnelDirection::Send => {
-            // remote port forward
-            let spec = format!(
-                "{}:{}:{}",
-                tunnel.from_host,
-                tunnel.from_port,
-                format!("{}:{}", tunnel.to_host, tunnel.to_port)
-            );
             cmd.arg("-R").arg(spec);
         }
     }
@@ -143,15 +142,18 @@ fn build_ssh_command(tunnel: &Tunnel, ssh_user: &str, ssh_host: &str, ssh_key: &
     cmd
 }
 
-async fn manage_tunnel(tunnel: Tunnel, ssh_user: String, ssh_host: String, ssh_key: String) {
+async fn manage_tunnel(
+    tunnel: Tunnel,
+    ssh_user: String,
+    ssh_host: String,
+    ssh_key: String,
+    ssh_port: u16,
+) {
     let mut delay = Duration::from_secs(1);
 
     loop {
-        let command = build_ssh_command(&tunnel, &ssh_user, &ssh_host, &ssh_key);
-
-        // Convert std::process::Command to tokio::process::Command
+        let command = build_ssh_command(&tunnel, &ssh_user, &ssh_host, &ssh_key, ssh_port);
         let mut command = TokioCommand::from(command);
-
         command.stdout(Stdio::null());
         command.stderr(Stdio::piped());
 
@@ -166,7 +168,6 @@ async fn manage_tunnel(tunnel: Tunnel, ssh_user: String, ssh_host: String, ssh_k
                 let reader = BufReader::new(stderr);
                 let mut lines = reader.lines();
 
-                // Spawn task to log stderr output
                 let logging_task = tokio::spawn(async move {
                     while let Ok(Some(line)) = lines.next_line().await {
                         info!("[ssh ] {}", line);
@@ -194,19 +195,21 @@ async fn manage_tunnel(tunnel: Tunnel, ssh_user: String, ssh_host: String, ssh_k
         delay = std::cmp::min(delay * 2, Duration::from_secs(60));
     }
 }
-#[tokio::main]
 
+#[tokio::main]
 async fn main() -> Result<()> {
     dotenv().context("Failed to load .env")?;
-
     env_logger::init();
 
     let ssh_host = env::var("SSH_HOST")?;
     let ssh_user = env::var("SSH_USER")?;
     let ssh_key_raw = env::var("SSH_PRIVATE_KEY")?;
-    let _ssh_key_path = PathBuf::from(&ssh_key_raw);
 
-    let ssh_key_raw = env::var("SSH_PRIVATE_KEY")?;
+    let ssh_port = env::var("SSH_PORT")
+        .unwrap_or_else(|_| "22".to_string())
+        .parse::<u16>()
+        .context("Invalid SSH_PORT")?;
+
     let ssh_key_path = PathBuf::from(&ssh_key_raw);
 
     let ssh_key = if ssh_key_path.is_absolute() {
@@ -240,7 +243,6 @@ async fn main() -> Result<()> {
 
     let shutdown_notify = Arc::new(Mutex::new(false));
 
-    // Graceful shutdown
     {
         let notify = shutdown_notify.clone();
         tokio::spawn(async move {
@@ -256,13 +258,13 @@ async fn main() -> Result<()> {
         let ssh_user = ssh_user.clone();
         let ssh_host = ssh_host.clone();
         let ssh_key = ssh_key.to_string_lossy().to_string();
+        let ssh_port = ssh_port;
 
         handles.push(tokio::spawn(manage_tunnel(
-            tunnel, ssh_user, ssh_host, ssh_key,
+            tunnel, ssh_user, ssh_host, ssh_key, ssh_port,
         )));
     }
 
-    // Wait until shutdown
     while !*shutdown_notify.lock().unwrap() {
         time::sleep(Duration::from_secs(1)).await;
     }
