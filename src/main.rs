@@ -94,13 +94,23 @@ fn parse_host_port(s: &str) -> Result<(String, u16)> {
     Ok((host, port))
 }
 
-fn build_ssh_command(tunnel: &Tunnel, ssh_user: &str, ssh_host: &str, ssh_key: &str) -> Command {
+// Added ssh_port parameter here
+fn build_ssh_command(
+    tunnel: &Tunnel,
+    ssh_user: &str,
+    ssh_host: &str,
+    ssh_port: &str,
+    ssh_key: &str,
+) -> Command {
     let mut cmd = Command::new("ssh");
     cmd.arg("-i").arg(ssh_key);
     cmd.arg("-vv");
     cmd.arg("-o").arg("StrictHostKeyChecking=no");
     cmd.arg("-o").arg("ExitOnForwardFailure=yes");
     cmd.arg("-N");
+
+    // Add the port option
+    cmd.arg("-p").arg(ssh_port);
 
     match tunnel.direction {
         TunnelDirection::Receive => {
@@ -131,11 +141,18 @@ fn build_ssh_command(tunnel: &Tunnel, ssh_user: &str, ssh_host: &str, ssh_key: &
     cmd
 }
 
-async fn manage_tunnel(tunnel: Tunnel, ssh_user: String, ssh_host: String, ssh_key: String) {
+// Updated signature to include ssh_port
+async fn manage_tunnel(
+    tunnel: Tunnel,
+    ssh_user: String,
+    ssh_host: String,
+    ssh_port: String,
+    ssh_key: String,
+) {
     let mut delay = Duration::from_secs(1);
 
     loop {
-        let command = build_ssh_command(&tunnel, &ssh_user, &ssh_host, &ssh_key);
+        let command = build_ssh_command(&tunnel, &ssh_user, &ssh_host, &ssh_port, &ssh_key);
 
         // Convert std::process::Command to tokio::process::Command
         let mut command = TokioCommand::from(command);
@@ -182,8 +199,8 @@ async fn manage_tunnel(tunnel: Tunnel, ssh_user: String, ssh_host: String, ssh_k
         delay = std::cmp::min(delay * 2, Duration::from_secs(60));
     }
 }
-#[tokio::main]
 
+#[tokio::main]
 async fn main() -> Result<()> {
     dotenv().context("Failed to load .env")?;
 
@@ -191,10 +208,9 @@ async fn main() -> Result<()> {
 
     let ssh_host = env::var("SSH_HOST")?;
     let ssh_user = env::var("SSH_USER")?;
+    let ssh_port = env::var("SSH_PORT")?; // <-- load SSH_PORT here
     let ssh_key_raw = env::var("SSH_PRIVATE_KEY")?;
-    let _ssh_key_path = PathBuf::from(&ssh_key_raw);
 
-    let ssh_key_raw = env::var("SSH_PRIVATE_KEY")?;
     let ssh_key_path = PathBuf::from(&ssh_key_raw);
 
     let ssh_key = if ssh_key_path.is_absolute() {
@@ -243,10 +259,11 @@ async fn main() -> Result<()> {
     for tunnel in tunnels {
         let ssh_user = ssh_user.clone();
         let ssh_host = ssh_host.clone();
+        let ssh_port = ssh_port.clone(); // clone ssh_port
         let ssh_key = ssh_key.to_string_lossy().to_string();
 
         handles.push(tokio::spawn(manage_tunnel(
-            tunnel, ssh_user, ssh_host, ssh_key,
+            tunnel, ssh_user, ssh_host, ssh_port, ssh_key,
         )));
     }
 
