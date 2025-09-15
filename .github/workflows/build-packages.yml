@@ -1,0 +1,207 @@
+name: Build and Publish APT Repository
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build'
+        required: true
+        default: 'latest'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-packages:
+    name: Build Multi-Architecture Packages
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+          - x86_64-unknown-linux-gnu
+          - aarch64-unknown-linux-gnu  
+          - armv7-unknown-linux-gnueabihf
+        include:
+          - target: x86_64-unknown-linux-gnu
+            deb_arch: amd64
+          - target: aarch64-unknown-linux-gnu
+            deb_arch: arm64
+          - target: armv7-unknown-linux-gnueabihf
+            deb_arch: armhf
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: ${{ matrix.target }}
+        
+    - name: Install cross
+      run: cargo install cross --git https://github.com/cross-rs/cross
+      
+    - name: Cache cargo registry
+      uses: actions/cache@v3
+      with:
+        path: ~/.cargo/registry
+        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('Cargo.lock') }}
+        
+    - name: Cache cargo build
+      uses: actions/cache@v3
+      with:
+        path: target
+        key: ${{ runner.os }}-cargo-build-${{ matrix.target }}-${{ hashFiles('Cargo.lock') }}
+
+    - name: Build for ${{ matrix.target }}
+      run: cross build --target ${{ matrix.target }} --release
+
+    - name: Extract version
+      id: version
+      run: |
+        VERSION=$(grep '^version' Cargo.toml | sed 's/version = "\(.*\)"/\1/')
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        
+    - name: Create .deb package
+      run: |
+        # Extract metadata
+        VERSION="${{ steps.version.outputs.version }}"
+        PACKAGE_NAME="m-tunnel-rust"
+        AUTHOR=$(grep '^authors' Cargo.toml | sed -E 's/authors = \["([^"]*)".*/\1/')
+        DESCRIPTION=$(grep '^description' Cargo.toml | sed 's/description = "\(.*\)"/\1/')
+        
+        # Create package structure
+        DEB_DIR="${PACKAGE_NAME}_${VERSION}-1_${{ matrix.deb_arch }}"
+        mkdir -p "$DEB_DIR/usr/bin"
+        mkdir -p "$DEB_DIR/etc/m-tunnel"
+        mkdir -p "$DEB_DIR/lib/systemd/system"
+        mkdir -p "$DEB_DIR/var/log/m-tunnel"
+        mkdir -p "$DEB_DIR/DEBIAN"
+        
+        # Copy binary
+        cp "target/${{ matrix.target }}/release/$PACKAGE_NAME" "$DEB_DIR/usr/bin/"
+        
+        # Copy config files
+        cp "m-tunnel.conf" "$DEB_DIR/etc/m-tunnel/" 2>/dev/null || echo "# Example config" > "$DEB_DIR/etc/m-tunnel/m-tunnel.conf"
+        cp ".env" "$DEB_DIR/etc/m-tunnel/" 2>/dev/null || echo "# SSH configuration" > "$DEB_DIR/etc/m-tunnel/.env"
+        cp "m-tunnel.key" "$DEB_DIR/etc/m-tunnel/" 2>/dev/null || echo "# SSH private key" > "$DEB_DIR/etc/m-tunnel/m-tunnel.key"
+        cp "known_hosts.template" "$DEB_DIR/etc/m-tunnel/known_hosts" 2>/dev/null || echo "# SSH known hosts" > "$DEB_DIR/etc/m-tunnel/known_hosts"
+        
+        # Set permissions
+        chmod 644 "$DEB_DIR/etc/m-tunnel/m-tunnel.conf"
+        chmod 600 "$DEB_DIR/etc/m-tunnel/.env"
+        chmod 600 "$DEB_DIR/etc/m-tunnel/m-tunnel.key"
+        chmod 644 "$DEB_DIR/etc/m-tunnel/known_hosts"
+        
+        # Create systemd service
+        cp "m-tunnel.service" "$DEB_DIR/lib/systemd/system/"
+        
+        # Create control file
+        cat > "$DEB_DIR/DEBIAN/control" <<EOF
+        Package: $PACKAGE_NAME
+        Version: $VERSION-1
+        Section: utils
+        Priority: optional
+        Architecture: ${{ matrix.deb_arch }}
+        Maintainer: $AUTHOR
+        Description: $DESCRIPTION
+         .
+         SSH tunnel management utility with enhanced security and performance.
+         Built for ${{ matrix.deb_arch }} architecture.
+        Depends: openssh-client
+        EOF
+        
+        # Create postinst and postrm scripts
+        cp installer-postinst.sh "$DEB_DIR/DEBIAN/postinst" 2>/dev/null || cat > "$DEB_DIR/DEBIAN/postinst" <<'EOF'
+        #!/bin/bash
+        set -e
+        # Create user, directories, permissions...
+        # (Full script would be here)
+        systemctl daemon-reload
+        systemctl enable m-tunnel.service
+        EOF
+        
+        chmod 755 "$DEB_DIR/DEBIAN/postinst"
+        
+        # Build package
+        dpkg-deb --build "$DEB_DIR"
+        
+    - name: Upload package artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: packages-${{ matrix.deb_arch }}
+        path: "*.deb"
+
+  publish-repository:
+    name: Publish APT Repository
+    needs: build-packages
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Download all packages
+      uses: actions/download-artifact@v3
+      with:
+        path: packages/
+        
+    - name: Setup GPG key
+      run: |
+        echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --import
+        echo "${{ secrets.GPG_PASSPHRASE }}" | gpg --batch --yes --passphrase-fd 0 --pinentry-mode loopback --sign --detach --armor /dev/null || true
+        
+    - name: Create APT repository
+      run: |
+        # Setup repository structure
+        mkdir -p apt-repo/{pool,dists}
+        
+        # Copy packages to pool
+        find packages/ -name "*.deb" -exec cp {} apt-repo/pool/ \;
+        
+        # Generate repository metadata
+        cd apt-repo
+        dpkg-scanpackages pool /dev/null > dists/Packages
+        gzip -9c dists/Packages > dists/Packages.gz
+        
+        # Create Release file
+        cat > dists/Release <<EOF
+        Origin: M-Tunnel Repository
+        Label: M-Tunnel
+        Architectures: amd64 arm64 armhf
+        Components: main
+        Description: M-Tunnel SSH tunneling utility
+        Date: $(date -u '+%a, %d %b %Y %H:%M:%S UTC')
+        EOF
+        
+        # Add checksums
+        echo "MD5Sum:" >> dists/Release
+        find dists -name "Packages*" -exec md5sum {} \; | sed 's|dists/||' >> dists/Release
+        echo "SHA1:" >> dists/Release
+        find dists -name "Packages*" -exec sha1sum {} \; | sed 's|dists/||' >> dists/Release
+        echo "SHA256:" >> dists/Release  
+        find dists -name "Packages*" -exec sha256sum {} \; | sed 's|dists/||' >> dists/Release
+        
+        # Sign Release file
+        gpg --default-key "${{ secrets.GPG_KEY_ID }}" --armor --detach-sign --output dists/Release.gpg dists/Release
+        gpg --default-key "${{ secrets.GPG_KEY_ID }}" --clear-sign --output dists/InRelease dists/Release
+        
+        # Export public key
+        gpg --armor --export "${{ secrets.GPG_KEY_ID }}" > public.key
+        
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./apt-repo
+        publish_branch: apt-repository
+        
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: packages/**/*.deb
+        generate_release_notes: true
