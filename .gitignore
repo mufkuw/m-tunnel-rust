@@ -1,1 +1,46 @@
 /target
+
+# Sensitive configuration files - DO NOT COMMIT
+*.key
+*.pem
+.env
+.env.*
+!.env.example
+
+# GPG keys (will be generated locally by users)
+gpg-key.asc
+private.key
+public.key
+
+# Build artifacts and temporary files
+apt-repository/
+gh-pages-content/
+pages-content/
+
+# Debian packaging temporary files
+debian/files
+debian/.debhelper/
+debian/tmp/
+debian/m-tunnel-rust/
+
+# Distribution files
+*.deb
+*.tar.gz
+*.tar.xz
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Local configuration and secrets
+config/local.*
+config/production.*
+secrets/
+private/

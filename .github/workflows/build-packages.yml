@@ -191,14 +191,172 @@ jobs:
         gpg --default-key "${{ secrets.GPG_KEY_ID }}" --clear-sign --output dists/InRelease dists/Release
         
         # Export public key
-        gpg --armor --export "${{ secrets.GPG_KEY_ID }}" > public.key
+        gpg --armor --export "${{ secrets.GPG_KEY_ID }}" > gpg-key.asc
+        
+    - name: Create GitHub Pages content
+      run: |
+        # Create pages directory
+        mkdir -p pages-content
+        cp -r apt-repo/* pages-content/
+        
+        # Repository URL
+        REPO_URL="https://$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]' | cut -d'/' -f1).github.io/$(echo "${{ github.repository }}" | cut -d'/' -f2)"
+        
+        # Create enhanced index.html
+        cat > pages-content/index.html << 'EOF'
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>M-Tunnel APT Repository</title>
+            <style>
+                body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px; background: #f8f9fa; }
+                .container { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+                .header { text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #007acc; }
+                .logo { font-size: 2.5em; margin-bottom: 10px; color: #007acc; }
+                .install-box { background: #f1f3f4; border: 1px solid #dadce0; border-radius: 6px; padding: 20px; margin: 20px 0; font-family: 'Courier New', monospace; }
+                .install-command { background: #2d3748; color: #e2e8f0; padding: 15px; border-radius: 6px; margin: 10px 0; overflow-x: auto; }
+                .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin: 30px 0; }
+                .feature { padding: 20px; background: #f8f9fa; border-radius: 6px; border-left: 4px solid #007acc; }
+                .badge { display: inline-block; background: #007acc; color: white; padding: 4px 8px; border-radius: 12px; font-size: 0.8em; margin: 5px 5px 5px 0; }
+                .stats { text-align: center; margin: 30px 0; padding: 20px; background: #e8f4fd; border-radius: 6px; }
+                a { color: #007acc; text-decoration: none; }
+                a:hover { text-decoration: underline; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <div class="logo">🚇 M-Tunnel</div>
+                    <h1>APT Repository</h1>
+                    <p>Professional SSH tunneling utility for Linux systems</p>
+                </div>
+                <div class="stats">
+                    <h3>📊 Repository Status</h3>
+                    <span class="badge">✅ Active</span>
+                    <span class="badge">🔒 GPG Signed</span>
+                    <span class="badge">🏗️ Multi-Arch</span>
+                    <span class="badge">⚡ Auto-Updated</span>
+                </div>
+                <h2>🚀 Quick Installation</h2>
+                <div class="install-box">
+                    <strong>One-liner installation:</strong>
+                    <div class="install-command">curl -fsSL REPO_URL_PLACEHOLDER/install.sh | sudo bash</div>
+                </div>
+                <h2>📦 Manual Installation</h2>
+                <div class="install-box">
+                    <strong>Add repository manually:</strong>
+                    <div class="install-command"># Add GPG key
+        curl -fsSL REPO_URL_PLACEHOLDER/gpg-key.asc | sudo apt-key add -
+        
+        # Add repository  
+        echo "deb REPO_URL_PLACEHOLDER/apt stable main" | sudo tee /etc/apt/sources.list.d/m-tunnel.list
+        
+        # Install package
+        sudo apt update
+        sudo apt install m-tunnel-rust</div>
+                </div>
+                <h2>✨ Features</h2>
+                <div class="features">
+                    <div class="feature">
+                        <h3>🔒 Enhanced Security</h3>
+                        <p>Strict SSH host verification, dedicated service user, and systemd security hardening</p>
+                    </div>
+                    <div class="feature">
+                        <h3>⚡ High Performance</h3>
+                        <p>Arc-based memory management, connection multiplexing, and intelligent reconnection</p>
+                    </div>
+                    <div class="feature">
+                        <h3>🔄 Auto-Reconnection</h3>
+                        <p>Automatic reconnection with exponential backoff and connection monitoring</p>
+                    </div>
+                    <div class="feature">
+                        <h3>🏗️ Multi-Architecture</h3>
+                        <p>Native support for amd64, arm64, and armhf architectures</p>
+                    </div>
+                </div>
+                <h2>📚 Documentation</h2>
+                <ul>
+                    <li><a href="https://github.com/${{ github.repository }}/blob/master/README.md">Installation Guide</a></li>
+                    <li><a href="https://github.com/${{ github.repository }}/blob/master/APT-REPOSITORY.md">Repository Documentation</a></li>
+                    <li><a href="https://github.com/${{ github.repository }}/issues">Report Issues</a></li>
+                </ul>
+                <h2>🏷️ Available Packages</h2>
+                <div class="install-box">
+                    <strong>m-tunnel-rust</strong> - SSH tunnel management utility
+                    <br><small>Architectures: amd64, arm64, armhf</small>
+                </div>
+                <footer style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #dadce0; color: #666;">
+                    <p>Powered by GitHub Pages • <a href="https://github.com/${{ github.repository }}">Source Code</a> • Built with ❤️</p>
+                </footer>
+            </div>
+        </body>
+        </html>
+        EOF
+        
+        # Replace placeholder with actual URL
+        sed -i "s|REPO_URL_PLACEHOLDER|$REPO_URL|g" pages-content/index.html
+        
+        # Create install script
+        cat > pages-content/install.sh << 'EOF'
+        #!/bin/bash
+        # M-Tunnel APT Repository Installer
+        
+        set -e
+        
+        echo "🚇 Installing M-Tunnel APT Repository"
+        echo "====================================="
+        
+        # Check if running as root
+        if [ "$EUID" -ne 0 ]; then
+            echo "❌ Error: This script must be run as root (use sudo)"
+            exit 1
+        fi
+        
+        # Repository URL
+        REPO_URL="REPO_URL_PLACEHOLDER"
+        
+        echo "📍 Repository URL: $REPO_URL"
+        
+        # Add GPG key
+        echo "🔑 Adding GPG key..."
+        if command -v apt-key >/dev/null 2>&1; then
+            curl -fsSL "$REPO_URL/gpg-key.asc" | apt-key add -
+            KEYRING_OPTION=""
+        else
+            # For newer systems that don't support apt-key
+            curl -fsSL "$REPO_URL/gpg-key.asc" | gpg --dearmor -o /usr/share/keyrings/m-tunnel.gpg
+            KEYRING_OPTION="[signed-by=/usr/share/keyrings/m-tunnel.gpg]"
+        fi
+        
+        # Add repository
+        echo "📦 Adding repository..."
+        echo "deb ${KEYRING_OPTION} $REPO_URL/apt stable main" > /etc/apt/sources.list.d/m-tunnel.list
+        
+        # Update package list
+        echo "🔄 Updating package list..."
+        apt update
+        
+        echo "✅ M-Tunnel repository added successfully!"
+        echo ""
+        echo "🚀 Install M-Tunnel with:"
+        echo "   sudo apt install m-tunnel-rust"
+        echo ""
+        echo "📚 Documentation:"
+        echo "   https://github.com/${{ github.repository }}"
+        EOF
+        
+        # Replace placeholder in install script
+        sed -i "s|REPO_URL_PLACEHOLDER|$REPO_URL|g" pages-content/install.sh
+        chmod +x pages-content/install.sh
         
     - name: Deploy to GitHub Pages
       uses: peaceiris/actions-gh-pages@v3
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./apt-repo
-        publish_branch: apt-repository
+        publish_dir: ./pages-content
+        publish_branch: gh-pages
         
     - name: Create Release
       uses: softprops/action-gh-release@v1
