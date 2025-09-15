@@ -1,0 +1,30 @@
+#!/bin/bash
+set -e
+
+case "$1" in
+    remove)
+        systemctl stop m-tunnel.service || true
+        systemctl disable m-tunnel.service || true
+        systemctl daemon-reload
+        # Clean up SSH control sockets
+        rm -rf /tmp/ssh-m-tunnel
+        ;;
+    purge)
+        systemctl stop m-tunnel.service || true
+        systemctl disable m-tunnel.service || true
+        systemctl daemon-reload
+        
+        # Remove log directory on purge
+        rm -rf /var/log/m-tunnel
+        rm -rf /tmp/ssh-m-tunnel
+        
+        # Remove user (but keep home directory with configs)
+        if id "m-tunnel" &>/dev/null; then
+            userdel m-tunnel 2>/dev/null || true
+            echo "Removed m-tunnel user"
+        fi
+        
+        echo "Configuration files in /etc/m-tunnel/ preserved."
+        echo "Remove manually if no longer needed: rm -rf /etc/m-tunnel/"
+        ;;
+esac
