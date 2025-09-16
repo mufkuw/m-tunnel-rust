@@ -1,11 +1,15 @@
 [package]
-name = "m-tunnel-rust"
+name = "m-tunnel"
 version = "1.0.0"
 authors = ["Muffaddal Kalla <mufkuw@gmail.com>"]
 edition = "2021"
 description = "A Rust-based SSH tunnel utility for forward and reverse port forwarding"
-license = "MIT"
+license = "AGPL-3.0"
 repository = "https://github.com/mufkuw/m-tunnel-rust"
+
+[[bin]]
+name = "m-tunnel"
+path = "src/main.rs"
 
 [dependencies]
 anyhow = "1"

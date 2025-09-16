@@ -22,13 +22,13 @@ cd m-tunnel-rust
 cargo build --release
 
 # Dry-run (no network connections) - recommended for first run
-./target/release/m-tunnel-rust --ssh2 --config configs/real_ssh_test.toml --dry-run
+./target/release/m-tunnel --ssh2 --config configs/real_ssh_test.toml --dry-run
 ```
 
 Install (optional):
 
 ```bash
-sudo cp target/release/m-tunnel-rust /usr/local/bin/
+sudo cp target/release/m-tunnel /usr/local/bin/
 ```
 
 ## Configuration
@@ -98,27 +98,6 @@ Contributions are welcome. If you'd like to help:
 ## License
 
 This project is now distributed under the GNU Affero General Public License v3 (AGPLv3). See the `LICENSE` file for full details.
-
-## Support / Buy me a coffee
-
-If you'd like to support ongoing development, here are simple ways to accept donations or 'buy a coffee':
-
-- GitHub Sponsors — create a sponsor profile and add a badge/link to your README
-- Ko-fi / Buy Me a Coffee — create an account and add a link or badge
-- PayPal.me — add a PayPal.me link for direct tips (example: `https://paypal.me/mufkuw`)
-- Open Collective — for recurring donations and transparent budgeting
-
-Example donation blurb you can add to your README:
-
-> If you find M-Tunnel Rust useful, consider buying me a coffee: https://paypal.me/mufkuw (PayPal handle: `@mufkuw`) — any support helps keep maintenance and improvements going.
-
-Optional PayPal button (markdown):
-
-```markdown
-[![Donate](https://img.shields.io/badge/Donate-PayPal-blue?logo=paypal)](https://paypal.me/mufkuw)
-```
-
-If you want, I can add a badge and a short instructions block (Ko-fi / PayPal / GitHub Sponsors) to the README and show how to include it in project metadata.
 
 ---
 

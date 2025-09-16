@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/m-tunnel-rust
+ExecStart=/usr/bin/m-tunnel
 Restart=always
 RestartSec=5
 User=m-tunnel
