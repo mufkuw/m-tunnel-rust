@@ -1,10 +1,14 @@
 # M-Tunnel — Secure Business Network Bridge
 
-## **WITHOUT OPENING FIREWALL PORTS**
+## **NO PORTS AT BRANCHES + ONLY 1 PORT AT HQ**
 
-M-Tunnel is a high-performance SSH tunnel manager designed specifically for **business environments** where headquarters need reliable, secure access to services at remote branches — shops, restaurants, warehouses, and distributed locations.
+M-Tunnel is a high-performance network bridge designed specifically for **business environments** where headquarters need reliable, secure access to services at remote branches — shops, restaurants, warehouses, and distributed locations.
 
-**🔒 No firewall configuration required** — M-Tunnel uses outbound SSH connections from branches to headquarters, eliminating the need to open inbound ports or complex firewall rules at remote locations.
+**🔒 Firewall-friendly architecture:**
+
+- **Branches**: Zero inbound ports required — uses outbound connections only
+- **Headquarters**: Only 1 port needed for the M-Tunnel-Gate server
+- **Result**: No complex firewall rules, no security vulnerabilities from open ports at remote locations
 
 Built in **Rust** for maximum reliability and minimal resource usage, M-Tunnel ensures your business-critical connections stay up 24/7 with blazing-fast performance that won't strain your branch infrastructure.
 
@@ -12,9 +16,9 @@ Built in **Rust** for maximum reliability and minimal resource usage, M-Tunnel e
 
 ## Why M-Tunnel for Business?
 
-**The Problem**: Your headquarters needs secure access to POS systems, inventory databases, security cameras, and other services running at dozens or hundreds of remote locations. Traditional VPN solutions are complex, resource-heavy, unreliable, and require opening firewall ports.
+**The Problem**: Many businesses rely on VPNs to connect HQ and branches, but VPNs are often costly (monthly fees), resource-heavy, consume large amounts of data, and require complex firewall and network configuration at every location. That makes them impractical for stores, kiosks, and embedded devices.
 
-**The Solution**: M-Tunnel creates lightweight, encrypted SSH tunnels that connect your HQ directly to branch services with enterprise-grade reliability — **WITHOUT OPENING FIREWALL PORTS** at branch locations.
+**The Solution**: M-Tunnel (client) and M-Tunnel-Gate (HQ) provide a tiny, secure, and blazing-fast infrastructure that runs comfortably on embedded or low-cost devices. Deploy M-Tunnel at branches and a single M-Tunnel-Gate at HQ — no inbound ports at branches and only one port at HQ — drastically reducing cost, configuration overhead, and operational complexity. M-Tunnel is free to use under AGPLv3 (with the usual share-alike obligations).
 
 ## Why Rust?
 
@@ -26,12 +30,12 @@ Built in **Rust** for maximum reliability and minimal resource usage, M-Tunnel e
 
 ## Key Features
 
-- **🔒 NO FIREWALL PORTS**: Uses outbound SSH connections — no inbound ports to open at branches
-- **Native SSH2 Implementation**: No external dependencies — just one binary to deploy
-- **Multi-Branch Support**: Manage tunnels to hundreds of locations from a single configuration
+- **🔒 MINIMAL FIREWALL SETUP**: Zero ports at branches + only 1 port at HQ M-Tunnel-Gate
+- **Single Binary**: No external dependencies — just one binary to deploy at each location
+- **Multi-Branch Support**: Manage connections to hundreds of locations from a single configuration
 - **Business-Grade Reliability**: Automatic reconnection, connection throttling, and health monitoring
 - **Zero-Touch Operation**: Deploy once, runs forever with comprehensive logging
-- **Secure Configuration**: TOML-based setup with SSH key validation and secure defaults
+- **Secure Configuration**: TOML-based setup with key validation and secure defaults
 
 ## Business Use Cases
 
@@ -75,6 +79,12 @@ remote_port = 443
 
 ## Quick Start
 
+**Simple Architecture**:
+
+- **HQ**: Install M-Tunnel-Gate server (requires only 1 port open)
+- **Branches**: Install M-Tunnel client (no inbound ports required)
+- **Connection**: Branches connect outbound to HQ, creating secure bridge
+
 Deploy M-Tunnel at your headquarters and branch locations:
 
 ```bash
@@ -84,7 +94,7 @@ cd m-tunnel-rust
 cargo build --release
 
 # Test configuration (safe dry-run)
-./target/release/m-tunnel --ssh2 --config configs/branch-connection.toml --dry-run
+./target/release/m-tunnel --config configs/branch-connection.toml --dry-run
 
 # Deploy to production
 sudo cp target/release/m-tunnel /usr/local/bin/
@@ -95,8 +105,8 @@ sudo cp target/release/m-tunnel /usr/local/bin/
 Create a configuration file for each branch connection:
 
 ```toml
-[ssh]
-host = "branch-001.company.com"  # Your branch server
+[connection]
+host = "hq-gate.company.com"  # Your HQ M-Tunnel-Gate server
 user = "tunnel-user"
 port = 22
 key_path = "/etc/m-tunnel/branch-001.key"
@@ -167,13 +177,13 @@ sudo systemctl status m-tunnel
 # View connection logs
 sudo journalctl -u m-tunnel -f
 
-# Verify tunnels are working
+# Verify connections are working
 netstat -tlnp | grep m-tunnel
 ```
 
 ## Enterprise Features
 
-- **🔒 NO FIREWALL CONFIGURATION**: Eliminates complex firewall rules and port management
+- **🔒 MINIMAL FIREWALL SETUP**: Zero ports at branches, only 1 port at HQ M-Tunnel-Gate
 - **Automatic Reconnection**: Handles network outages and server reboots
 - **Connection Throttling**: Prevents overwhelming branch networks
 - **Comprehensive Logging**: Full audit trail for compliance
@@ -183,14 +193,15 @@ netstat -tlnp | grep m-tunnel
 
 ## Performance Benchmarks
 
-| Metric          | M-Tunnel (Rust) | Traditional VPN | SSH CLI        |
-| --------------- | --------------- | --------------- | -------------- |
-| Memory Usage    | 5.1 MB          | 45-80 MB        | 15 MB          |
-| Startup Time    | 3.0s            | 15-30s          | 2.5s           |
-| CPU Usage       | <1%             | 5-15%           | 2-5%           |
-| Reliability     | 99.9%+          | 95-98%          | 98%            |
-| Firewall Config | **None**        | Complex         | Moderate       |
-| Dependencies    | None            | Many            | openssh-client |
+| Metric            | M-Tunnel (Rust) | Traditional VPN | Other Solutions |
+| ----------------- | --------------- | --------------- | --------------- |
+| Memory Usage      | 5.1 MB          | 45-80 MB        | 15 MB           |
+| Startup Time      | 3.0s            | 15-30s          | 2.5s            |
+| CPU Usage         | <1%             | 5-15%           | 2-5%            |
+| Reliability       | 99.9%+          | 95-98%          | 98%             |
+| Ports at Branches | **0**           | Multiple        | 1-2             |
+| Ports at HQ       | **1**           | Multiple        | Multiple        |
+| Dependencies      | None            | Many            | Some            |
 
 ## Contributing to Business Connectivity
 
