@@ -14,6 +14,18 @@ log = "0.4"
 env_logger = "0.11.8"
 tokio = { version = "1", features = ["full"] }
 ssh2 = "0.9"
+serde = { version = "1.0", features = ["derive"] }
+toml = "0.8"
+parking_lot = "0.12"
+warp = { version = "0.3", optional = true }
+
+[dev-dependencies]
+tempfile = "3.0"
+tokio-test = "0.4"
+
+[features]
+default = ["metrics"]
+metrics = ["warp"]
 
 
 [package.metadata.deb]

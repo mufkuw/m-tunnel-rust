@@ -1,0 +1,43 @@
+# M-Tunnel Configuration (TOML Format)
+# This is the new structured configuration format
+
+[ssh]
+host = "example.com"
+user = "root"
+port = 22
+key_path = "/etc/m-tunnel/m-tunnel.key"
+timeout = 30
+keepalive_interval = 60
+
+[limits]
+max_attempts = 5
+retry_window_secs = 300
+max_backoff_secs = 60
+
+# Tunnel configurations
+[[tunnels]]
+name = "ssh-forward"
+direction = "send"
+local_host = "127.0.0.1"
+local_port = 22
+remote_host = "192.168.80.12"
+remote_port = 20001
+enabled = true
+
+[[tunnels]]
+name = "web-reverse"
+direction = "receive"
+local_host = "0.0.0.0"
+local_port = 8080
+remote_host = "10.0.0.5"
+remote_port = 80
+enabled = true
+
+[[tunnels]]
+name = "db-forward"
+direction = "receive"
+local_host = "127.0.0.1"
+local_port = 5432
+remote_host = "db.internal"
+remote_port = 5432
+enabled = false  # Disabled tunnel example

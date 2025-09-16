@@ -44,3 +44,5 @@ config/local.*
 config/production.*
 secrets/
 private/
+
+m-tunnel-rust_1.0.0-1/
