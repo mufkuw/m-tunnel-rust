@@ -1,4 +1,4 @@
-name: Build and Publish APT Repository (SSH2 Enhanced)
+name: Build and Publish Packages (Multi-Platform)
 
 on:
   push:
@@ -15,8 +15,8 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build-packages:
-    name: Build Multi-Architecture Packages (SSH2 Enhanced)
+  build-linux-packages:
+    name: Build Linux Packages (SSH2 Enhanced)
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -232,9 +232,62 @@ jobs:
           name: packages-${{ matrix.deb_arch }}
           path: "*.deb"
 
+  build-windows:
+    name: Build Windows Package
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+
+      - name: Build release binary
+        run: cargo build --release
+
+      - name: Create Windows package
+        run: |
+          # Create package directory
+          New-Item -ItemType Directory -Path "windows-package" -Force
+
+          # Copy binary
+          Copy-Item "target\release\m-tunnel.exe" "windows-package\"
+
+          # Copy installer script
+          Copy-Item "scripts\installer.ps1" "windows-package\"
+
+          # Copy configuration files
+          New-Item -ItemType Directory -Path "windows-package\configs" -Force
+          Get-ChildItem "configs\" -File | Copy-Item -Destination "windows-package\configs\"
+
+          # Copy documentation
+          New-Item -ItemType Directory -Path "windows-package\docs" -Force
+          Copy-Item "README.md" "windows-package\docs\"
+          Get-ChildItem "docs\" -File | Copy-Item -Destination "windows-package\docs\"
+
+          # Copy test scripts
+          New-Item -ItemType Directory -Path "windows-package\tests" -Force
+          Get-ChildItem "tests\" -File | Copy-Item -Destination "windows-package\tests\"
+
+          # Create zip archive
+          Compress-Archive -Path "windows-package\*" -DestinationPath "m-tunnel-windows-x64.zip"
+
+      - name: Upload Windows package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-package
+          path: m-tunnel-windows-x64.zip
+
   publish-repository:
     name: Publish APT Repository
-    needs: build-packages
+    needs: build-linux-packages
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
 
