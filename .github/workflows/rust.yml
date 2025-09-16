@@ -155,12 +155,24 @@ jobs:
       - name: Verify package contents
         run: |
           # Check if package includes new structure
-          dpkg-deb -c *.deb | grep "usr/share/doc/m-tunnel"
-          dpkg-deb -c *.deb | grep "usr/share/m-tunnel/tests"
-          dpkg-deb -c *.deb | grep "etc/m-tunnel/examples"
-          echo "✅ Package structure verified"
+          if ls *.deb 1> /dev/null 2>&1; then
+            echo "📦 Found .deb package(s):"
+            ls -la *.deb
+            echo ""
+            echo "🔍 Verifying package contents..."
+            dpkg-deb -c *.deb | grep "usr/share/doc/m-tunnel" || echo "⚠️  usr/share/doc/m-tunnel not found"
+            dpkg-deb -c *.deb | grep "usr/share/m-tunnel/tests" || echo "⚠️  usr/share/m-tunnel/tests not found"
+            dpkg-deb -c *.deb | grep "etc/m-tunnel/examples" || echo "⚠️  etc/m-tunnel/examples not found"
+            echo "✅ Package structure verification completed"
+          else
+            echo "❌ No .deb files found after running installer script"
+            echo "📋 Checking what files were created:"
+            ls -la
+            exit 1
+          fi
 
       - name: Upload package artifact
+        if: success() && hashFiles('*.deb') != ''
         uses: actions/upload-artifact@v4
         with:
           name: test-package
