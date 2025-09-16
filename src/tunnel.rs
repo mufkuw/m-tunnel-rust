@@ -31,6 +31,7 @@ impl From<&str> for TunnelDirection {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct Tunnel {
     pub id: String,
     pub direction: TunnelDirection,
@@ -56,6 +57,7 @@ impl From<&TunnelConfig> for Tunnel {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct TunnelMetrics {
     pub uptime_start: Instant,
     pub reconnect_count: u64,
@@ -63,6 +65,7 @@ pub struct TunnelMetrics {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct ConnectionLimiter {
     attempts: HashMap<String, (u32, Instant)>,
     max_attempts: u32,
@@ -108,6 +111,7 @@ impl ConnectionLimiter {
     }
 }
 
+#[allow(dead_code)]
 pub struct TunnelManager {
     config: Config,
     metrics: Arc<MetricsCollector>,
@@ -115,6 +119,7 @@ pub struct TunnelManager {
     shutdown: Arc<Mutex<bool>>,
 }
 
+#[allow(dead_code)]
 impl TunnelManager {
     pub async fn new(config: Config, metrics: Arc<MetricsCollector>) -> Result<Self> {
         // Validate SSH configuration
@@ -176,10 +181,10 @@ impl TunnelManager {
     pub async fn shutdown(&self) -> Result<()> {
         info!("Initiating graceful shutdown...");
         *self.shutdown.lock().unwrap() = true;
-        
+
         // Give tunnels time to clean up
         time::sleep(Duration::from_secs(2)).await;
-        
+
         Ok(())
     }
 
@@ -239,7 +244,7 @@ impl TunnelManager {
             match command.spawn() {
                 Ok(mut child) => {
                     metrics.update_tunnel_status(&tunnel.id, TunnelStatus::Connected);
-                    
+
                     let stderr = child.stderr.take().expect("No stderr pipe");
                     let reader = BufReader::new(stderr);
                     let mut lines = reader.lines();
@@ -258,7 +263,7 @@ impl TunnelManager {
                         Ok(status) => {
                             tunnel_metrics.reconnect_count += 1;
                             metrics.increment_reconnect(&tunnel.id);
-                            
+
                             let uptime = tunnel_metrics.uptime_start.elapsed();
                             warn!(
                                 "Tunnel {} exited with: {} (uptime: {:?}, reconnects: {})",
@@ -308,7 +313,8 @@ impl TunnelManager {
 
         // Security: Enable strict host key checking
         cmd.arg("-o").arg("StrictHostKeyChecking=yes");
-        cmd.arg("-o").arg("UserKnownHostsFile=/etc/m-tunnel/known_hosts");
+        cmd.arg("-o")
+            .arg("UserKnownHostsFile=/etc/m-tunnel/known_hosts");
         cmd.arg("-o").arg("HashKnownHosts=yes");
 
         // Performance: SSH multiplexing
@@ -318,12 +324,16 @@ impl TunnelManager {
 
         // Network optimizations
         cmd.arg("-o").arg("TCPKeepAlive=yes");
-        cmd.arg("-o").arg(format!("ServerAliveInterval={}", ssh_config.keepalive_interval));
+        cmd.arg("-o").arg(format!(
+            "ServerAliveInterval={}",
+            ssh_config.keepalive_interval
+        ));
         cmd.arg("-o").arg("ServerAliveCountMax=3");
         cmd.arg("-o").arg("Compression=yes");
 
         // Timeouts
-        cmd.arg("-o").arg(format!("ConnectTimeout={}", ssh_config.timeout));
+        cmd.arg("-o")
+            .arg(format!("ConnectTimeout={}", ssh_config.timeout));
         cmd.arg("-o").arg("LogLevel=ERROR");
         cmd.arg("-o").arg("ExitOnForwardFailure=yes");
         cmd.arg("-N");
@@ -333,8 +343,7 @@ impl TunnelManager {
                 // Local port forward: -L [bind_address:]port:host:hostport
                 let spec = format!(
                     "{}:{}:{}:{}",
-                    tunnel.local_host, tunnel.local_port,
-                    tunnel.remote_host, tunnel.remote_port
+                    tunnel.local_host, tunnel.local_port, tunnel.remote_host, tunnel.remote_port
                 );
                 cmd.arg("-L").arg(spec);
             }
@@ -342,8 +351,7 @@ impl TunnelManager {
                 // Remote port forward: -R [bind_address:]port:host:hostport
                 let spec = format!(
                     "{}:{}:{}:{}",
-                    tunnel.local_host, tunnel.local_port,
-                    tunnel.remote_host, tunnel.remote_port
+                    tunnel.local_host, tunnel.local_port, tunnel.remote_host, tunnel.remote_port
                 );
                 cmd.arg("-R").arg(spec);
             }

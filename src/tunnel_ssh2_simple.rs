@@ -1,5 +1,5 @@
-use anyhow::{Context, Result};
-use log::{error, info, warn};
+use anyhow::Result;
+use log::info;
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
@@ -27,6 +27,7 @@ impl From<&str> for TunnelDirection {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct Tunnel {
     pub id: String,
     pub direction: TunnelDirection,
@@ -52,6 +53,7 @@ impl From<&TunnelConfig> for Tunnel {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct TunnelMetrics {
     pub uptime_start: Instant,
     pub reconnect_count: u64,
@@ -60,12 +62,14 @@ pub struct TunnelMetrics {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct ConnectionLimiter {
     attempts: HashMap<String, (u32, Instant)>,
     max_attempts: u32,
     window: Duration,
 }
 
+#[allow(dead_code)]
 impl ConnectionLimiter {
     pub fn new(max_attempts: u32, window: Duration) -> Self {
         Self {
@@ -75,6 +79,7 @@ impl ConnectionLimiter {
         }
     }
 
+    #[allow(dead_code)]
     pub fn can_attempt(&mut self, host: &str) -> bool {
         let now = Instant::now();
         let key = host.to_string();
@@ -105,9 +110,11 @@ impl ConnectionLimiter {
     }
 }
 
+#[allow(dead_code)]
 pub struct TunnelManager {
-    pub config: Config,
-    pub metrics: Arc<MetricsCollector>,
+    config: Config,
+    metrics: Arc<MetricsCollector>,
+    #[allow(dead_code)]
     pub connection_limiter: Arc<Mutex<ConnectionLimiter>>,
     pub shutdown: Arc<Mutex<bool>>,
 }
@@ -116,7 +123,7 @@ impl TunnelManager {
     pub async fn new(config: Config, metrics: Arc<MetricsCollector>) -> Result<Self> {
         // Basic validation for now
         info!("Creating SSH2-based tunnel manager");
-        
+
         let connection_limiter = Arc::new(Mutex::new(ConnectionLimiter::new(
             config.limits.max_attempts,
             Duration::from_secs(config.limits.retry_window_secs),
@@ -131,7 +138,10 @@ impl TunnelManager {
     }
 
     pub async fn start(&self) -> Result<()> {
-        info!("🚀 Starting SSH2 tunnel manager with {} tunnels", self.config.tunnels.len());
+        info!(
+            "🚀 Starting SSH2 tunnel manager with {} tunnels",
+            self.config.tunnels.len()
+        );
 
         let mut handles = vec![];
 
@@ -167,10 +177,10 @@ impl TunnelManager {
     pub async fn shutdown(&self) -> Result<()> {
         info!("Initiating graceful shutdown...");
         *self.shutdown.lock().unwrap() = true;
-        
+
         // Give tunnels time to clean up
         time::sleep(Duration::from_secs(2)).await;
-        
+
         Ok(())
     }
 
@@ -181,9 +191,10 @@ impl TunnelManager {
         metrics: Arc<MetricsCollector>,
         shutdown: Arc<Mutex<bool>>,
     ) {
-        info!("🧪 MOCK: Managing tunnel {} ({}:{} → {}:{})", 
-              tunnel.id, tunnel.local_host, tunnel.local_port,
-              tunnel.remote_host, tunnel.remote_port);
+        info!(
+            "🧪 MOCK: Managing tunnel {} ({}:{} → {}:{})",
+            tunnel.id, tunnel.local_host, tunnel.local_port, tunnel.remote_host, tunnel.remote_port
+        );
 
         metrics.update_tunnel_status(&tunnel.id, TunnelStatus::Connected);
 
@@ -192,7 +203,7 @@ impl TunnelManager {
         while !*shutdown.lock().unwrap() && iteration < 10 {
             time::sleep(Duration::from_secs(1)).await;
             iteration += 1;
-            
+
             if iteration == 5 {
                 info!("🧪 MOCK: Tunnel {} transferring data...", tunnel.id);
             }

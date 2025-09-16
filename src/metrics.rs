@@ -17,7 +17,23 @@ pub struct TunnelStats {
     pub connection_latency: Option<Duration>,
 }
 
+impl Default for TunnelStats {
+    fn default() -> Self {
+        Self {
+            tunnel_id: String::new(),
+            status: TunnelStatus::Disconnected,
+            uptime: Duration::from_secs(0),
+            reconnect_count: 0,
+            bytes_sent: 0,
+            bytes_received: 0,
+            last_error: None,
+            connection_latency: None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
+#[allow(dead_code)]
 pub enum TunnelStatus {
     Connected,
     Connecting,
@@ -45,13 +61,16 @@ impl MetricsCollector {
         }
     }
 
+    #[allow(dead_code)]
     pub fn increment_reconnect(&self, tunnel_id: &str) {
         let mut stats = self.stats.write().unwrap();
-        if let Some(tunnel_stats) = stats.get_mut(tunnel_id) {
-            tunnel_stats.reconnect_count += 1;
-        }
+        stats
+            .entry(tunnel_id.to_string())
+            .or_default()
+            .reconnect_count += 1;
     }
 
+    #[allow(dead_code)]
     pub fn get_summary(&self) -> HashMap<String, TunnelStats> {
         let stats = self.stats.read().unwrap();
         stats.clone()
