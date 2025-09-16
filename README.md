@@ -1,6 +1,10 @@
 # M-Tunnel — Secure Business Network Bridge
 
+## **WITHOUT OPENING FIREWALL PORTS**
+
 M-Tunnel is a high-performance SSH tunnel manager designed specifically for **business environments** where headquarters need reliable, secure access to services at remote branches — shops, restaurants, warehouses, and distributed locations.
+
+**🔒 No firewall configuration required** — M-Tunnel uses outbound SSH connections from branches to headquarters, eliminating the need to open inbound ports or complex firewall rules at remote locations.
 
 Built in **Rust** for maximum reliability and minimal resource usage, M-Tunnel ensures your business-critical connections stay up 24/7 with blazing-fast performance that won't strain your branch infrastructure.
 
@@ -8,9 +12,9 @@ Built in **Rust** for maximum reliability and minimal resource usage, M-Tunnel e
 
 ## Why M-Tunnel for Business?
 
-**The Problem**: Your headquarters needs secure access to POS systems, inventory databases, security cameras, and other services running at dozens or hundreds of remote locations. Traditional VPN solutions are complex, resource-heavy, and unreliable.
+**The Problem**: Your headquarters needs secure access to POS systems, inventory databases, security cameras, and other services running at dozens or hundreds of remote locations. Traditional VPN solutions are complex, resource-heavy, unreliable, and require opening firewall ports.
 
-**The Solution**: M-Tunnel creates lightweight, encrypted SSH tunnels that connect your HQ directly to branch services with enterprise-grade reliability.
+**The Solution**: M-Tunnel creates lightweight, encrypted SSH tunnels that connect your HQ directly to branch services with enterprise-grade reliability — **WITHOUT OPENING FIREWALL PORTS** at branch locations.
 
 ## Why Rust?
 
@@ -22,6 +26,7 @@ Built in **Rust** for maximum reliability and minimal resource usage, M-Tunnel e
 
 ## Key Features
 
+- **🔒 NO FIREWALL PORTS**: Uses outbound SSH connections — no inbound ports to open at branches
 - **Native SSH2 Implementation**: No external dependencies — just one binary to deploy
 - **Multi-Branch Support**: Manage tunnels to hundreds of locations from a single configuration
 - **Business-Grade Reliability**: Automatic reconnection, connection throttling, and health monitoring
@@ -168,6 +173,7 @@ netstat -tlnp | grep m-tunnel
 
 ## Enterprise Features
 
+- **🔒 NO FIREWALL CONFIGURATION**: Eliminates complex firewall rules and port management
 - **Automatic Reconnection**: Handles network outages and server reboots
 - **Connection Throttling**: Prevents overwhelming branch networks
 - **Comprehensive Logging**: Full audit trail for compliance
@@ -177,13 +183,14 @@ netstat -tlnp | grep m-tunnel
 
 ## Performance Benchmarks
 
-| Metric       | M-Tunnel (Rust) | Traditional VPN | SSH CLI        |
-| ------------ | --------------- | --------------- | -------------- |
-| Memory Usage | 5.1 MB          | 45-80 MB        | 15 MB          |
-| Startup Time | 3.0s            | 15-30s          | 2.5s           |
-| CPU Usage    | <1%             | 5-15%           | 2-5%           |
-| Reliability  | 99.9%+          | 95-98%          | 98%            |
-| Dependencies | None            | Many            | openssh-client |
+| Metric          | M-Tunnel (Rust) | Traditional VPN | SSH CLI        |
+| --------------- | --------------- | --------------- | -------------- |
+| Memory Usage    | 5.1 MB          | 45-80 MB        | 15 MB          |
+| Startup Time    | 3.0s            | 15-30s          | 2.5s           |
+| CPU Usage       | <1%             | 5-15%           | 2-5%           |
+| Reliability     | 99.9%+          | 95-98%          | 98%            |
+| Firewall Config | **None**        | Complex         | Moderate       |
+| Dependencies    | None            | Many            | openssh-client |
 
 ## Contributing to Business Connectivity
 
