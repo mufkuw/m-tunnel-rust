@@ -33,13 +33,13 @@ echo ""
 echo "🚀 Phase 2: Functionality Tests"
 
 # Test dry run mode
-run_test "Dry run mode" "timeout 5s cargo run -- --dry-run || true"
+run_test "Dry run mode" "timeout 5s cd .. && cargo run -- --dry-run || true"
 
 # Test SSH2 flag
-run_test "SSH2 flag recognition" "timeout 5s cargo run -- --ssh2 --dry-run || true"
+run_test "SSH2 flag recognition" "timeout 5s cd .. && cargo run -- --ssh2 --dry-run || true"
 
 # Test configuration loading
-run_test "Configuration validation" "timeout 5s cargo run -- --dry-run || true"
+run_test "Configuration validation" "timeout 5s cd .. && cargo run -- --dry-run || true"
 
 echo ""
 echo "⚙️  Phase 3: Configuration Tests"
@@ -80,14 +80,14 @@ chmod 600 test_key.pem
 
 # Test with custom config
 export M_TUNNEL_CONFIG="test_simple.toml"
-run_test "Custom TOML config" "timeout 5s cargo run -- --config test_simple.toml --dry-run || true"
+run_test "Custom TOML config" "timeout 5s cd .. && cargo run -- --config test_simple.toml --dry-run || true"
 
 echo ""
 echo "🔒 Phase 4: Security Tests"
 
 # Test with bad key permissions
 chmod 644 test_key.pem
-run_test "Bad key permissions (should fail)" "! timeout 5s cargo run -- --config test_simple.toml --dry-run 2>/dev/null"
+run_test "Bad key permissions (should fail)" "! timeout 5s cd .. && cargo run -- --config test_simple.toml --dry-run 2>/dev/null"
 
 # Fix permissions
 chmod 600 test_key.pem
@@ -96,11 +96,11 @@ echo ""
 echo "🏗️  Phase 5: Architecture Tests"
 
 # Test that both tunnel implementations exist
-run_test "SSH2 simple module exists" "grep -q 'mod tunnel_ssh2_simple' src/main.rs"
-run_test "Original tunnel module exists" "grep -q 'mod tunnel;' src/main.rs"
+run_test "SSH2 simple module exists" "grep -q 'mod tunnel_ssh2_simple' ../src/main.rs"
+run_test "Original tunnel module exists" "grep -q 'mod tunnel;' ../src/main.rs"
 
 # Test feature selection logic
-run_test "SSH2 flag logic" "grep -q 'use_ssh2.*ssh2' src/main.rs"
+run_test "SSH2 flag logic" "grep -q 'use_ssh2.*ssh2' ../src/main.rs"
 
 echo ""
 echo "📊 Phase 6: Performance Tests"
@@ -108,7 +108,7 @@ echo "📊 Phase 6: Performance Tests"
 # Quick performance test
 echo -n "Connection timing test: "
 START_TIME=$(date +%s%N)
-timeout 2s cargo run -- --dry-run >/dev/null 2>&1 || true
+timeout 2s bash -c "cd .. && cargo run -- --dry-run" >/dev/null 2>&1 || true
 END_TIME=$(date +%s%N)
 DURATION=$((($END_TIME - $START_TIME) / 1000000)) # Convert to milliseconds
 
@@ -122,9 +122,9 @@ echo ""
 echo "🧹 Phase 7: Code Quality"
 
 # Check for common issues
-run_test "No unwrap() in production code" "! grep -r 'unwrap()' src/ --exclude-dir=tests* || true"
-run_test "Error handling present" "grep -q 'Result<' src/tunnel_ssh2_simple.rs"
-run_test "Logging present" "grep -q 'info!' src/tunnel_ssh2_simple.rs"
+run_test "No unwrap() in production code" "! grep -r 'unwrap()' ../src/ --exclude-dir=tests* || true"
+run_test "Error handling present" "grep -q 'Result<' ../src/tunnel_ssh2_simple.rs"
+run_test "Logging present" "grep -q 'info!' ../src/tunnel_ssh2_simple.rs"
 
 echo ""
 echo "🔧 Phase 8: Live Testing (Mock)"
@@ -148,7 +148,7 @@ echo "🧪 Phase 9: Mock SSH Connection Test"
 
 # Test if we can simulate an SSH connection
 echo -n "Mock SSH connection test: "
-if timeout 3s cargo run -- --ssh2 --dry-run >/dev/null 2>&1; then
+if timeout 3s bash -c "cd .. && cargo run -- --ssh2 --dry-run" >/dev/null 2>&1; then
     echo -e "${GREEN}✅ PASS${NC}"
 else
     echo -e "${YELLOW}⚠️  SKIP (no real SSH available)${NC}"
@@ -164,7 +164,7 @@ TOTAL=0
 echo "Checking integration readiness:"
 
 # Check for essential components
-if grep -q "TunnelManager" src/tunnel_ssh2_simple.rs; then
+if grep -q "TunnelManager" ../src/tunnel_ssh2_simple.rs; then
     echo "  ✅ TunnelManager implemented"
     ((SCORE++))
 else
@@ -172,7 +172,7 @@ else
 fi
 ((TOTAL++))
 
-if grep -q "pub async fn start" src/tunnel_ssh2_simple.rs; then
+if grep -q "pub async fn start" ../src/tunnel_ssh2_simple.rs; then
     echo "  ✅ Async start method"
     ((SCORE++))
 else
@@ -180,7 +180,7 @@ else
 fi
 ((TOTAL++))
 
-if grep -q "pub async fn shutdown" src/tunnel_ssh2_simple.rs; then
+if grep -q "pub async fn shutdown" ../src/tunnel_ssh2_simple.rs; then
     echo "  ✅ Async shutdown method"
     ((SCORE++))
 else
@@ -188,7 +188,7 @@ else
 fi
 ((TOTAL++))
 
-if grep -q "ConnectionLimiter" src/tunnel_ssh2_simple.rs; then
+if grep -q "ConnectionLimiter" ../src/tunnel_ssh2_simple.rs; then
     echo "  ✅ Connection limiting"
     ((SCORE++))
 else
@@ -196,7 +196,7 @@ else
 fi
 ((TOTAL++))
 
-if grep -q "metrics" src/tunnel_ssh2_simple.rs; then
+if grep -q "metrics" ../src/tunnel_ssh2_simple.rs; then
     echo "  ✅ Metrics integration"
     ((SCORE++))
 else

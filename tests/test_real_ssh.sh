@@ -30,7 +30,7 @@ echo "   ssh localhost"
 echo ""
 echo "4. Create test configuration:"
 
-cat > real_ssh_test.toml << 'EOF'
+cat > ../configs/real_ssh_test.toml << 'EOF'
 [ssh]
 host = "localhost"
 user = "$USER"
@@ -54,8 +54,8 @@ enabled = true
 EOF
 
 # Replace variables with actual values
-sed -i "s/\$USER/$USER/g" real_ssh_test.toml
-sed -i "s|\$HOME|$HOME|g" real_ssh_test.toml
+sed -i "s/\$USER/$USER/g" ../configs/real_ssh_test.toml
+sed -i "s|\$HOME|$HOME|g" ../configs/real_ssh_test.toml
 
 echo ""
 echo "✅ Created real_ssh_test.toml with your settings:"
@@ -67,7 +67,7 @@ echo ""
 echo -e "${BLUE}Option 2: Test with remote SSH server${NC}"
 echo "--------------------------------------------"
 echo ""
-echo "1. Edit real_ssh_test.toml manually:"
+echo "1. Edit ../configs/real_ssh_test.toml manually:"
 echo "   [ssh]"
 echo "   host = \"your-server.com\""
 echo "   user = \"your-username\""
@@ -81,10 +81,10 @@ echo "1. Test SSH connection manually first:"
 echo "   ssh -i \$HOME/.ssh/id_rsa $USER@localhost"
 echo ""
 echo "2. Test with dry-run mode:"
-echo "   cargo run -- --ssh2 --config real_ssh_test.toml --dry-run"
+echo "   cd /root/m-tunnel-rust && cargo run -- --ssh2 --config configs/real_ssh_test.toml --dry-run"
 echo ""
 echo "3. Test actual SSH2 connection:"
-echo "   cargo run -- --ssh2 --config real_ssh_test.toml"
+echo "   cd /root/m-tunnel-rust && cargo run -- --ssh2 --config configs/real_ssh_test.toml"
 echo ""
 
 echo -e "${YELLOW}⚠️  Important Security Notes:${NC}"
@@ -100,10 +100,10 @@ echo ""
 echo "Compare SSH2 vs CLI performance:"
 echo ""
 echo "1. CLI version timing:"
-echo "   time cargo run -- --config real_ssh_test.toml"
+echo "   cd /root/m-tunnel-rust && time cargo run -- --config configs/real_ssh_test.toml"
 echo ""
 echo "2. SSH2 version timing:"
-echo "   time cargo run -- --ssh2 --config real_ssh_test.toml"
+echo "   cd /root/m-tunnel-rust && time cargo run -- --ssh2 --config configs/real_ssh_test.toml"
 echo ""
 
 echo -e "${BLUE}Troubleshooting${NC}"
@@ -132,9 +132,9 @@ echo ""
 echo -e "${GREEN}Ready to test!${NC}"
 echo ""
 echo "🚀 Run this command to start testing:"
-echo -e "${GREEN}cargo run -- --ssh2 --config real_ssh_test.toml --dry-run${NC}"
+echo -e "${GREEN}cd /root/m-tunnel-rust && cargo run -- --ssh2 --config configs/real_ssh_test.toml --dry-run${NC}"
 echo ""
 echo "📊 For performance comparison:"
-echo -e "${GREEN}time cargo run -- --ssh2 --config real_ssh_test.toml${NC}"
+echo -e "${GREEN}cd /root/m-tunnel-rust && time cargo run -- --ssh2 --config configs/real_ssh_test.toml${NC}"
 echo ""
-echo "🎯 Configuration file created: real_ssh_test.toml"
+echo "🎯 Configuration file created: configs/real_ssh_test.toml"

@@ -58,10 +58,10 @@ echo ""
 echo -e "${BLUE}🚀 Phase 2: Configuration Stress Tests${NC}"
 
 # Create various test configs
-mkdir -p test_configs
+mkdir -p ../test_configs
 
 # Valid minimal config
-cat > test_configs/minimal.toml << 'EOF'
+cat > ../../test_configs/minimal.toml << 'EOF'
 [ssh]
 host = "localhost"
 user = "testuser"
@@ -79,14 +79,14 @@ enabled = true
 EOF
 
 # Invalid config - missing required fields
-cat > test_configs/invalid.toml << 'EOF'
+cat > ../test_configs/invalid.toml << 'EOF'
 [ssh]
 host = "localhost"
 # Missing required fields
 EOF
 
 # Complex config with multiple tunnels
-cat > test_configs/complex.toml << 'EOF'
+cat > ../test_configs/complex.toml << 'EOF'
 [ssh]
 host = "complex.example.com"
 user = "complexuser"
@@ -129,26 +129,26 @@ enabled = false
 EOF
 
 # Create dummy SSH keys for testing
-echo "dummy-key-content" > test_configs/test.key
-echo "dummy-key-content" > test_configs/complex.key
-chmod 600 test_configs/test.key test_configs/complex.key
+echo "dummy-key-content" > ../test_configs/test.key
+echo "dummy-key-content" > ../test_configs/complex.key
+chmod 600 ../test_configs/test.key ../test_configs/complex.key
 
-run_test "Minimal config parsing" "cargo run -- --config test_configs/minimal.toml --dry-run"
-run_test "Complex config parsing" "cargo run -- --config test_configs/complex.toml --dry-run"
-run_test "Invalid config rejection" "! cargo run -- --config test_configs/invalid.toml --dry-run" false
+run_test "Minimal config parsing" "cd .. && cargo run -- --config ../test_configs/minimal.toml --dry-run"
+run_test "Complex config parsing" "cd .. && cargo run -- --config ../test_configs/complex.toml --dry-run"
+run_test "Invalid config rejection" "! cd .. && cargo run -- --config ../test_configs/invalid.toml --dry-run" false
 
 echo ""
 echo -e "${BLUE}🔒 Phase 3: Security Stress Tests${NC}"
 
 # Test key permission validation
-chmod 644 test_configs/test.key
-run_test "Reject insecure key permissions" "! cargo run -- --config test_configs/minimal.toml --dry-run 2>/dev/null" false
+chmod 644 ../test_configs/test.key
+run_test "Reject insecure key permissions" "! cd .. && cargo run -- --config ../test_configs/minimal.toml --dry-run 2>/dev/null" false
 
-chmod 600 test_configs/test.key
-run_test "Accept secure key permissions" "cargo run -- --config test_configs/minimal.toml --dry-run"
+chmod 600 ../test_configs/test.key
+run_test "Accept secure key permissions" "cd .. && cargo run -- --config ../test_configs/minimal.toml --dry-run"
 
 # Test with non-existent key
-cat > test_configs/missing_key.toml << 'EOF'
+cat > ../test_configs/missing_key.toml << 'EOF'
 [ssh]
 host = "localhost"
 user = "testuser"
@@ -165,7 +165,7 @@ remote_port = 80
 enabled = true
 EOF
 
-run_test "Reject missing SSH key" "! cargo run -- --config test_configs/missing_key.toml --dry-run 2>/dev/null" false
+run_test "Reject missing SSH key" "! cd .. && cargo run -- --config ../test_configs/missing_key.toml --dry-run 2>/dev/null" false
 
 echo ""
 echo -e "${BLUE}📊 Phase 4: Performance Stress Tests${NC}"
@@ -185,7 +185,7 @@ echo "${BUILD_TIME}ms"
 # Startup time test
 echo -n "  Startup time: "
 START_TIME=$(date +%s%N)
-timeout 3s cargo run -- --config test_configs/minimal.toml --dry-run >/dev/null 2>&1
+timeout 3s cd .. && cargo run -- --config ../test_configs/minimal.toml --dry-run >/dev/null 2>&1
 END_TIME=$(date +%s%N)
 STARTUP_TIME=$((($END_TIME - $START_TIME) / 1000000))
 echo "${STARTUP_TIME}ms"
@@ -203,12 +203,12 @@ echo ""
 echo -e "${BLUE}🌊 Phase 5: Concurrency Stress Tests${NC}"
 
 # Test with multiple tunnel configurations
-cat > test_configs/many_tunnels.toml << 'EOF'
+cat > ../test_configs/many_tunnels.toml << 'EOF'
 [ssh]
 host = "localhost"
 user = "testuser"
 port = 22
-key_path = "test_configs/test.key"
+key_path = "../test_configs/test.key"
 
 [[tunnels]]
 name = "tunnel-1"
@@ -256,25 +256,25 @@ remote_port = 84
 enabled = true
 EOF
 
-run_test "Multiple tunnels config" "timeout 5s cargo run -- --config test_configs/many_tunnels.toml --dry-run"
+run_test "Multiple tunnels config" "timeout 5s cd .. && cargo run -- --config ../test_configs/many_tunnels.toml --dry-run"
 
 echo ""
 echo -e "${BLUE}🧪 Phase 6: Integration API Tests${NC}"
 
 # Test different CLI argument combinations
-run_test "SSH2 + dry-run flags" "cargo run -- --ssh2 --dry-run"
-run_test "Custom config + SSH2" "cargo run -- --ssh2 --config test_configs/minimal.toml --dry-run"
-run_test "Help message" "cargo run -- --help"
-run_test "Version flag" "cargo run -- --version || cargo run -- -V || echo 'No version flag'"
+run_test "SSH2 + dry-run flags" "cd .. && cargo run -- --ssh2 --dry-run"
+run_test "Custom config + SSH2" "cd .. && cargo run -- --ssh2 --config ../test_configs/minimal.toml --dry-run"
+run_test "Help message" "cd .. && cargo run -- --help"
+run_test "Version flag" "cd .. && cargo run -- --version || cd .. && cargo run -- -V || echo 'No version flag'"
 
 echo ""
 echo -e "${BLUE}🔍 Phase 7: Code Quality Stress Tests${NC}"
 
 # Advanced code quality checks
-run_test "No panic! macros in production" "! grep -r 'panic!' src/ --exclude-dir=tests* || true"
-run_test "Proper error propagation" "grep -q 'anyhow::Result\|Result<' src/tunnel_ssh2_simple.rs"
-run_test "Async safety" "grep -q 'Send\|Sync' src/tunnel_ssh2_simple.rs || echo 'Async traits implied'"
-run_test "Memory safety indicators" "grep -q 'Arc\|Mutex\|RwLock' src/tunnel_ssh2_simple.rs"
+run_test "No panic! macros in production" "! grep -r 'panic!' ../src/ --exclude-dir=tests* || true"
+run_test "Proper error propagation" "grep -q 'anyhow::Result\|Result<' ../src/tunnel_ssh2_simple.rs"
+run_test "Async safety" "grep -q 'Send\|Sync' ../src/tunnel_ssh2_simple.rs || echo 'Async traits implied'"
+run_test "Memory safety indicators" "grep -q 'Arc\|Mutex\|RwLock' ../src/tunnel_ssh2_simple.rs"
 
 echo ""
 echo -e "${BLUE}🎯 Phase 8: Real-world Simulation Tests${NC}"
@@ -283,7 +283,7 @@ echo -e "${BLUE}🎯 Phase 8: Real-world Simulation Tests${NC}"
 
 # Test graceful shutdown simulation
 echo -n "Graceful shutdown simulation: "
-timeout 5s cargo run -- --config test_configs/minimal.toml --dry-run &
+timeout 5s cd .. && cargo run -- --config ../test_configs/minimal.toml --dry-run &
 PID=$!
 sleep 2
 kill -TERM $PID 2>/dev/null
@@ -298,12 +298,12 @@ fi
 ((TOTAL++))
 
 # Test with invalid port ranges
-cat > test_configs/invalid_ports.toml << 'EOF'
+cat > ../test_configs/invalid_ports.toml << 'EOF'
 [ssh]
 host = "localhost"
 user = "testuser"
 port = 22
-key_path = "test_configs/test.key"
+key_path = "../test_configs/test.key"
 
 [[tunnels]]
 name = "bad-port"
@@ -315,7 +315,7 @@ remote_port = 80
 enabled = true
 EOF
 
-run_test "Handle invalid port numbers" "cargo run -- --config test_configs/invalid_ports.toml --dry-run"
+run_test "Handle invalid port numbers" "cd .. && cargo run -- --config ../test_configs/invalid_ports.toml --dry-run"
 
 echo ""
 echo -e "${BLUE}🏆 Phase 9: Reliability Tests${NC}"
@@ -324,7 +324,7 @@ echo -e "${BLUE}🏆 Phase 9: Reliability Tests${NC}"
 echo -n "Repeated startup test (5x): "
 SUCCESS_COUNT=0
 for i in {1..5}; do
-    if timeout 3s cargo run -- --config test_configs/minimal.toml --dry-run >/dev/null 2>&1; then
+    if timeout 3s cd .. && cargo run -- --config ../test_configs/minimal.toml --dry-run >/dev/null 2>&1; then
         ((SUCCESS_COUNT++))
     fi
 done
@@ -344,7 +344,7 @@ echo -e "${BLUE}🔧 Phase 10: Resource Management Tests${NC}"
 # Check for resource leaks (simplified)
 echo -n "File descriptor management: "
 # This is a basic test - in production you'd want more sophisticated leak detection
-if cargo run -- --config test_configs/minimal.toml --dry-run >/dev/null 2>&1; then
+if cd .. && cargo run -- --config ../test_configs/minimal.toml --dry-run >/dev/null 2>&1; then
     echo -e "${GREEN}✅ PASS (basic)${NC}"
     ((PASSED++))
 else

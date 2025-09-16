@@ -130,7 +130,7 @@ remote_port = 2222
 enabled = false
 EOF
 
-run_test "TOML config parsing" "RUST_LOG=debug cargo run --bin m-tunnel-rust -- --config test_config.toml --dry-run || true"
+run_test "TOML config parsing" "RUST_LOG=debug cd .. && cargo run --bin m-tunnel-rust -- --config test_config.toml --dry-run || true"
 
 # 10. Security Tests
 echo -e "${YELLOW}Phase 10: Security Tests${NC}"
