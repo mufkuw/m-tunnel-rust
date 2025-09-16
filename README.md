@@ -1,84 +1,39 @@
-# M-Tunnel Rust 🚀
+# M-Tunnel Rust — Simple, fast SSH tunneling
 
-A secure, high-performance SSH tunnel manager written in Rust with native SSH2 library integration.
+M-Tunnel Rust is a small, focused SSH tunnel manager written in Rust. It supports both a native SSH2-based implementation and a traditional SSH CLI mode. The project is designed for reliability, secure defaults, and easy integration into automation or devops workflows.
 
-## ✨ Features
+If you find this project useful, a star or a fork helps a lot. Contributions and bug reports are very welcome.
 
-- **Native SSH2 Implementation**: No external SSH CLI dependencies
-- **Multi-Tunnel Management**: Handle multiple SSH tunnels simultaneously
-- **Secure Configuration**: TOML-based config with SSH key validation
-- **Rate Limiting**: Built-in connection throttling and retry logic
-- **Async Performance**: Tokio-based async networking for high performance
-- **Production Ready**: Comprehensive testing and monitoring capabilities
+## Quick highlights
 
-## 🏗️ Project Structure
+- Native SSH2 implementation (no external ssh binary required)
+- Multiple tunnels and directions (forward/reverse)
+- TOML configuration with sensible defaults and SSH key checks
+- Async runtime (Tokio) for performance and responsiveness
+- Built-in retry/backoff and connection throttling
 
-```
-m-tunnel-rust/
-├── src/                    # Source code
-│   ├── main.rs            # Application entry point
-│   ├── config.rs          # Configuration management
-│   ├── tunnel.rs          # Original SSH CLI implementation
-│   ├── tunnel_ssh2.rs     # Native SSH2 implementation
-│   ├── tunnel_ssh2_simple.rs  # Simplified SSH2 for testing
-│   ├── metrics.rs         # Performance metrics
-│   ├── security.rs        # Security utilities
-│   └── tests_ssh2.rs      # SSH2 unit tests
-├── tests/                  # Test scripts
-│   ├── test_quick.sh      # Fast validation (30s)
-│   ├── test_stress.sh     # Comprehensive testing (5min)
-│   ├── test_real_ssh.sh   # Real SSH server testing guide
-│   └── test_comprehensive.sh  # Full integration tests
-├── configs/                # Configuration files
-│   ├── real_ssh_test.toml # Example SSH configuration
-│   ├── m-tunnel.conf      # Legacy configuration
-│   ├── m-tunnel.key.example  # SSH key template
-│   └── known_hosts.template  # SSH known hosts template
-├── docs/                   # Documentation
-│   ├── SSH2_TESTING_RESULTS.md     # Testing analysis
-│   ├── SSH_LIBRARY_COMPARISON.md   # CLI vs SSH2 comparison
-│   ├── TESTING_COMPLETE.md         # Testing summary
-│   ├── SECURITY-CHECKLIST.md       # Security guidelines
-│   └── INSTALL.md                  # Installation guide
-├── scripts/                # Build and deployment scripts
-│   ├── build-multi-arch.sh         # Multi-architecture builds
-│   ├── installer.sh                # Installation script
-│   └── setup-apt-repo.sh           # APT repository setup
-└── examples/               # Example configurations
-```
+## Quick start
 
-## 🚀 Quick Start
-
-### Installation
+Clone, build, and run a dry-run to verify your configuration:
 
 ```bash
-# Clone the repository
-git clone https://github.com/mufkuw/m-tunnel-rust
+git clone https://github.com/mufkuw/m-tunnel-rust.git
 cd m-tunnel-rust
-
-# Build the project
 cargo build --release
 
-# Install (optional)
-sudo cp target/release/m-tunnel-rust /usr/local/bin/
-```
-
-### Basic Usage
-
-```bash
-# Using SSH2 library (recommended)
-./target/release/m-tunnel-rust --ssh2 --config configs/real_ssh_test.toml
-
-# Using traditional SSH CLI
-./target/release/m-tunnel-rust --config configs/real_ssh_test.toml
-
-# Dry run mode (test configuration)
+# Dry-run (no network connections) - recommended for first run
 ./target/release/m-tunnel-rust --ssh2 --config configs/real_ssh_test.toml --dry-run
 ```
 
-### Configuration
+Install (optional):
 
-Create a TOML configuration file:
+```bash
+sudo cp target/release/m-tunnel-rust /usr/local/bin/
+```
+
+## Configuration
+
+Configure tunnels using a TOML file. A minimal example:
 
 ```toml
 [ssh]
@@ -86,159 +41,85 @@ host = "example.com"
 user = "username"
 port = 22
 key_path = "~/.ssh/id_rsa"
-timeout = 30
-keepalive_interval = 60
-
-[limits]
-max_attempts = 3
-retry_window_secs = 300
-max_backoff_secs = 60
 
 [[tunnels]]
-name = "web-tunnel"
+name = "web"
 direction = "receive"
 local_host = "127.0.0.1"
 local_port = 8080
 remote_host = "internal.web"
 remote_port = 80
 enabled = true
-
-[[tunnels]]
-name = "db-tunnel"
-direction = "forward"
-local_host = "127.0.0.1"
-local_port = 5432
-remote_host = "internal.db"
-remote_port = 5432
-enabled = true
 ```
 
-## 🧪 Testing
+See `configs/` and `docs/` for example files and a full explanation of available options.
 
-We provide comprehensive testing scripts to validate functionality:
+## Tests & quick verification
 
-### Quick Validation (30 seconds)
+There are a set of helper scripts under `tests/` to validate the build and basic runtime behaviour.
+
+Run the quick test suite (takes about 30s):
 
 ```bash
-cd tests && ./test_quick.sh
+cd tests
+chmod +x ./test_quick.sh
+./test_quick.sh
 ```
 
-### Comprehensive Stress Testing (5 minutes)
+For development, run unit tests with:
 
 ```bash
-cd tests && ./test_stress.sh
-```
-
-### Real SSH Server Testing
-
-```bash
-cd tests && ./test_real_ssh.sh
-# Follow the guide to test with actual SSH servers
-```
-
-### Full Integration Testing
-
-```bash
-cd tests && ./test_comprehensive.sh
-```
-
-## 📊 Performance
-
-| Implementation | Startup Time | Memory Usage | Dependencies |
-| -------------- | ------------ | ------------ | ------------ |
-| SSH2 Library   | ~3.0s        | 5.1M         | Native Rust  |
-| SSH CLI        | ~2.5s        | 4.8M         | External SSH |
-
-**Test Results**: 84% pass rate (21/25 tests) on comprehensive validation
-
-## 🔒 Security Features
-
-- **SSH Key Validation**: Enforces 600/400 permissions
-- **Input Sanitization**: Prevents injection attacks
-- **Rate Limiting**: Configurable connection throttling
-- **Secure Defaults**: Conservative timeouts and limits
-- **Error Handling**: No information leakage
-
-## 🛠️ Development
-
-### Building from Source
-
-```bash
-# Debug build
-cargo build
-
-# Release build (optimized)
-cargo build --release
-
-# Run tests
 cargo test
-
-# Check for issues
-cargo clippy
 ```
 
-### Running Tests
+And check for lints and warnings:
 
 ```bash
-# Quick validation
-cd tests && chmod +x *.sh && ./test_quick.sh
-
-# Stress testing
-./test_stress.sh
-
-# Real SSH testing
-./test_real_ssh.sh
+cargo clippy --all-targets --all-features -- -D warnings
+cargo fmt --all -- --check
 ```
 
-## 📚 Documentation
+## Development notes
 
-- [`docs/SSH2_TESTING_RESULTS.md`](docs/SSH2_TESTING_RESULTS.md) - Complete testing analysis
-- [`docs/SSH_LIBRARY_COMPARISON.md`](docs/SSH_LIBRARY_COMPARISON.md) - CLI vs SSH2 comparison
-- [`docs/SECURITY-CHECKLIST.md`](docs/SECURITY-CHECKLIST.md) - Security guidelines
-- [`docs/INSTALL.md`](docs/INSTALL.md) - Detailed installation guide
+- The codebase targets the 2021 Rust edition and uses Tokio for async.
+- Feature flags in `Cargo.toml` enable optional components; for example `--features ssh2` enables the native SSH2 library.
+- The `tests/` directory contains several helper scripts used during development and CI.
 
-## 🎯 Roadmap
+## Contributing
 
-### Current Status ✅
+Contributions are welcome. If you'd like to help:
 
-- Native SSH2 library integration
-- Comprehensive testing suite
-- Security hardening
-- Performance optimization
+1. Star or fork the repo
+2. Open an issue to discuss larger changes
+3. Create a branch for your work (`git checkout -b feature/your-change`)
+4. Run tests and linters before opening a PR
+5. Open a pull request with a clear description and small, focused changes
 
-### Next Steps 🔄
+## License
 
-- Load testing with concurrent connections
-- Real SSH server validation
-- Production deployment guides
-- Monitoring and alerting
+This project is now distributed under the GNU Affero General Public License v3 (AGPLv3). See the `LICENSE` file for full details.
 
-## 🤝 Contributing
+## Support / Buy me a coffee
 
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Run tests: `cd tests && ./test_quick.sh`
-4. Commit changes: `git commit -m 'Add amazing feature'`
-5. Push to branch: `git push origin feature/amazing-feature`
-6. Open a Pull Request
+If you'd like to support ongoing development, here are simple ways to accept donations or 'buy a coffee':
 
-## 📜 License
+- GitHub Sponsors — create a sponsor profile and add a badge/link to your README
+- Ko-fi / Buy Me a Coffee — create an account and add a link or badge
+- PayPal.me — add a PayPal.me link for direct tips (example: `https://paypal.me/mufkuw`)
+- Open Collective — for recurring donations and transparent budgeting
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Example donation blurb you can add to your README:
 
-## 🙏 Acknowledgments
+> If you find M-Tunnel Rust useful, consider buying me a coffee: https://paypal.me/mufkuw (PayPal handle: `@mufkuw`) — any support helps keep maintenance and improvements going.
 
-- Built with [Rust](https://rust-lang.org/) and [Tokio](https://tokio.rs/)
-- SSH2 integration via [ssh2-rs](https://github.com/alexcrichton/ssh2-rs)
-- Configuration parsing with [serde](https://serde.rs/) and [toml](https://github.com/toml-rs/toml)
+Optional PayPal button (markdown):
 
-## 📞 Support
+```markdown
+[![Donate](https://img.shields.io/badge/Donate-PayPal-blue?logo=paypal)](https://paypal.me/mufkuw)
+```
 
-- 📖 Documentation: [`docs/`](docs/)
-- 🧪 Testing: [`tests/`](tests/)
-- ⚙️ Examples: [`configs/`](configs/)
-- 🐛 Issues: [GitHub Issues](https://github.com/mufkuw/m-tunnel-rust/issues)
+If you want, I can add a badge and a short instructions block (Ko-fi / PayPal / GitHub Sponsors) to the README and show how to include it in project metadata.
 
 ---
 
-**Ready for production! 🚀** Your SSH2 implementation is thoroughly tested and validated.
+Thanks for checking out M-Tunnel Rust. If you have questions or want help integrating the tool into your environment, open an issue or a PR — happy to help.
