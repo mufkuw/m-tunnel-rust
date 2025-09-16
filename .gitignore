@@ -45,4 +45,5 @@ config/production.*
 secrets/
 private/
 
-m-tunnel-rust_1.0.0-1/
+m-tunnel-rust_*/
+m-tunnel-rust_*.deb
