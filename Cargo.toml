@@ -27,6 +27,7 @@ tokio-test = "0.4"
 [features]
 default = ["metrics"]
 metrics = ["warp"]
+ssh2 = []
 
 
 [package.metadata.deb]
