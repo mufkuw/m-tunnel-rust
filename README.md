@@ -1,5 +1,11 @@
 # M-Tunnel — Secure Business Network Bridge
 
+[![Rust CI](https://github.com/mufkuw/m-tunnel-rust/actions/workflows/rust.yml/badge.svg)](https://github.com/mufkuw/m-tunnel-rust/actions/workflows/rust.yml)
+[![Build Packages](https://github.com/mufkuw/m-tunnel-rust/actions/workflows/build-packages.yml/badge.svg)](https://github.com/mufkuw/m-tunnel-rust/actions/workflows/build-packages.yml)
+[![AGPL License](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](https://github.com/mufkuw/m-tunnel-rust/blob/master/LICENSE)
+[![Rust Version](https://img.shields.io/badge/rust-1.70%2B-orange.svg)](https://www.rust-lang.org/)
+[![Docker Ready](https://img.shields.io/badge/docker-ready-blue.svg)](https://hub.docker.com/)
+
 ## **NO PORTS AT BRANCHES + ONLY 1 PORT AT HQ**
 
 M-Tunnel is a high-performance network bridge designed specifically for **business environments** where headquarters need reliable, secure access to services at remote branches — shops, restaurants, warehouses, and distributed locations.
