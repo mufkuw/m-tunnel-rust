@@ -1,24 +1,31 @@
 mod config;
 mod metrics;
-mod security;
-mod tunnel;
-
-// SSH2 native implementation (simple version for testing)
-mod tunnel_ssh2_simple;
-
-#[cfg(test)]
-mod tests;
-
-// SSH2 specific tests
-#[cfg(test)]
-mod tests_ssh2;
+mod tunnel_cli;
 
 use anyhow::Result;
 use config::Config;
 use log::info;
 use metrics::MetricsCollector;
-use std::sync::Arc;
+use std::{net::IpAddr, sync::Arc};
 use tokio::signal;
+
+/// Check if IP is a server internal network (hide completely)
+fn is_server_internal_ip(ip_or_host: &str) -> bool {
+    if let Ok(ip) = ip_or_host.parse::<IpAddr>() {
+        match ip {
+            IpAddr::V4(ipv4) => {
+                let octets = ipv4.octets();
+                // Server internal networks: 192.168.x.x, 10.x.x.x, 172.16-31.x.x
+                (octets[0] == 192 && octets[1] == 168)
+                    || (octets[0] == 10)
+                    || (octets[0] == 172 && octets[1] >= 16 && octets[1] <= 31)
+            }
+            IpAddr::V6(_) => false, // Assume IPv6 is not server internal for now
+        }
+    } else {
+        false
+    }
+}
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -32,34 +39,55 @@ async fn main() -> Result<()> {
     // Check for dry run early to avoid config loading
     let dry_run = args.contains(&"--dry-run".to_string());
     if dry_run {
-        println!("🧪 DRY RUN MODE - Configuration validation");
-        println!("✅ Command line arguments parsed successfully!");
-        println!("✅ SSH2 implementation available");
-        println!("✅ Dry run completed - would proceed with tunnel creation");
+        println!("DRY RUN MODE - Configuration validation");
+        println!("Command line arguments parsed successfully");
+        println!("CLI implementation available");
+        println!("Dry run completed - would proceed with tunnel creation");
         return Ok(());
     }
 
-    env_logger::init();
+    // Initialize logger with info as default level
+    if std::env::var("RUST_LOG").is_err() {
+        std::env::set_var("RUST_LOG", "info");
+    }
 
-    info!("Starting m-tunnel-rust v{}", env!("CARGO_PKG_VERSION"));
+    // Custom logger format to show "M-Tunnel" instead of module path
+    env_logger::Builder::from_default_env()
+        .format(|buf, record| {
+            use std::io::Write;
+
+            // Color codes for different log levels (only for the level word)
+            let colored_level = match record.level() {
+                log::Level::Error => format!("\x1b[91m{}\x1b[0m", record.level()), // Bright red
+                log::Level::Warn => format!("\x1b[93m{}\x1b[0m", record.level()),  // Bright yellow
+                log::Level::Info => format!("\x1b[92m{}\x1b[0m", record.level()),  // Bright green
+                log::Level::Debug => format!("\x1b[94m{}\x1b[0m", record.level()), // Bright blue
+                log::Level::Trace => format!("\x1b[90m{}\x1b[0m", record.level()), // Dark gray
+            };
+
+            writeln!(
+                buf,
+                "[{} {} M-Tunnel] {}",
+                chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ"),
+                colored_level,
+                record.args()
+            )
+        })
+        .init();
+
+    info!("Starting M-Tunnel v{}", env!("CARGO_PKG_VERSION"));
 
     // Load configuration (supports both legacy and new TOML formats)
     let config = Config::load()?;
 
     info!("Loaded configuration with {} tunnels", config.tunnels.len());
-    info!(
-        "SSH target: {}@{}:{}",
-        config.ssh.user, config.ssh.host, config.ssh.port
-    );
-
-    // Check for CLI arguments
-    let use_ssh2 = args.contains(&"--ssh2".to_string()) // SSH2 flag detection
-        || std::env::var("M_TUNNEL_USE_SSH2").is_ok();
-
-    info!(
-        "Using {} implementation",
-        if use_ssh2 { "SSH2 library" } else { "SSH CLI" }
-    );
+    if is_server_internal_ip(&config.gate.host) {
+        let default_name = "server_internal".to_string();
+        let server_display = config.gate.server_name.as_ref().unwrap_or(&default_name);
+        info!("M-Tunnel-Gate : {}@{}", config.gate.user, server_display);
+    } else {
+        info!("M-Tunnel-Gate : {}@{}", config.gate.user, config.gate.host);
+    }
 
     // Initialize metrics collector
     let metrics = Arc::new(MetricsCollector::new());
@@ -77,15 +105,8 @@ async fn main() -> Result<()> {
         }
     }
 
-    // Create tunnel manager - use SSH2 implementation for testing
-    let tunnel_manager = if use_ssh2 {
-        info!("🚀 Using SSH2 library implementation");
-        tunnel_ssh2_simple::TunnelManager::new(config, metrics).await?
-    } else {
-        info!("🔧 Using SSH CLI implementation (fallback)");
-        // For now, fallback to SSH2 as well during testing
-        tunnel_ssh2_simple::TunnelManager::new(config, metrics).await?
-    };
+    // Create tunnel manager - use CLI implementation for optimal performance
+    let tunnel_manager = tunnel_cli::TunnelManager::new(config, metrics).await?;
 
     // Set up graceful shutdown
     let shutdown_handle = {
@@ -144,25 +165,27 @@ async fn start_metrics_server(_metrics: Arc<MetricsCollector>, _port: u16) -> Re
 }
 
 fn print_help() {
-    println!("m-tunnel-rust v{}", env!("CARGO_PKG_VERSION"));
-    println!("A secure SSH tunneling utility with native SSH2 library support");
+    println!("M-Tunnel v{}", env!("CARGO_PKG_VERSION"));
+    println!("A secure tunneling utility using CLI implementation");
     println!();
     println!("USAGE:");
-    println!("    m-tunnel-rust [OPTIONS]");
+    println!("    m-tunnel [OPTIONS]");
     println!();
     println!("OPTIONS:");
-    println!("    --ssh2              Use native SSH2 library (default)");
     println!("    --dry-run           Validate configuration without creating tunnels");
     println!("    --config <FILE>     Use specific configuration file");
     println!("    -h, --help          Print this help information");
     println!();
     println!("ENVIRONMENT VARIABLES:");
-    println!("    M_TUNNEL_USE_SSH2=1     Force SSH2 library usage");
     println!("    M_TUNNEL_CONFIG=<path>  Configuration file path");
     println!("    METRICS_PORT=<port>     Enable metrics server on specified port");
     println!();
     println!("EXAMPLES:");
-    println!("    m-tunnel-rust --ssh2 --dry-run");
-    println!("    m-tunnel-rust --config /etc/m-tunnel/custom.toml");
+    println!("    m-tunnel --dry-run");
+    println!("    m-tunnel --config /etc/m-tunnel/custom.toml");
+    println!();
+    println!("PERFORMANCE:");
+    println!("    Uses native CLI for compatibility and performance");
+    println!("    Direct process spawning without library overhead");
     println!();
 }

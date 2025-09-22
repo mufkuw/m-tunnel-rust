@@ -1,0 +1,28 @@
+# M-Tunnel Configuration (TOML Format)
+# This is the new structured configuration format
+# Please edit the values below to match your SSH server and tunnel requirements
+
+[gate]
+host = "192.168.13.12"
+user = "mufkuw"
+port = 22
+key_path = "working_key"
+timeout = 30
+keepalive_interval = 60
+server_name = "HomeServer"  # Display name for the server in logs
+
+[limits]
+max_attempts = 5
+retry_window_secs = 300
+max_backoff_secs = 60
+
+
+# Local port forward: Connect to localhost:1876 to reach 192.168.0.3:3389 via SSH server
+[[tunnels]]
+name = "remote-desktop"
+direction = "receive"
+local_host = "127.0.0.1"
+local_port = 1876
+remote_host = "192.168.0.3"
+remote_port = 3389
+enabled = true
