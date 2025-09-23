@@ -32,7 +32,7 @@ impl Default for TunnelStats {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, PartialEq)]
 #[allow(dead_code)]
 pub enum TunnelStatus {
     Connected,

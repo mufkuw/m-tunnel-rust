@@ -4,7 +4,10 @@ use std::{
     collections::HashMap,
     net::IpAddr,
     process::Stdio,
-    sync::{Arc, Mutex},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, Mutex,
+    },
     time::{Duration, Instant},
 };
 use tokio::{process::Command, time};
@@ -136,7 +139,7 @@ pub struct TunnelManager {
     config: Config,
     metrics: Arc<MetricsCollector>,
     connection_limiter: Arc<Mutex<ConnectionLimiter>>,
-    pub shutdown: Arc<Mutex<bool>>,
+    pub shutdown: Arc<AtomicBool>,
 }
 
 impl TunnelManager {
@@ -152,7 +155,7 @@ impl TunnelManager {
             config,
             metrics,
             connection_limiter,
-            shutdown: Arc::new(Mutex::new(false)),
+            shutdown: Arc::new(AtomicBool::new(false)),
         })
     }
 
@@ -163,6 +166,14 @@ impl TunnelManager {
         );
 
         let mut handles = vec![];
+
+        // Start status monitoring task
+        let status_metrics = Arc::clone(&self.metrics);
+        let status_config = self.config.clone();
+        let status_shutdown = Arc::clone(&self.shutdown);
+        handles.push(tokio::spawn(async move {
+            Self::monitor_tunnel_status(status_metrics, status_config, status_shutdown).await;
+        }));
 
         for tunnel_config in &self.config.tunnels {
             if !tunnel_config.enabled {
@@ -182,7 +193,7 @@ impl TunnelManager {
         }
 
         // Wait for shutdown signal
-        while !*self.shutdown.lock().unwrap() {
+        while !self.shutdown.load(Ordering::Relaxed) {
             time::sleep(Duration::from_secs(1)).await;
         }
 
@@ -196,7 +207,7 @@ impl TunnelManager {
 
     pub async fn shutdown(&self) -> Result<()> {
         info!("Initiating graceful shutdown...");
-        *self.shutdown.lock().unwrap() = true;
+        self.shutdown.store(true, Ordering::Relaxed);
 
         // Give tunnels time to clean up
         time::sleep(Duration::from_secs(2)).await;
@@ -204,12 +215,69 @@ impl TunnelManager {
         Ok(())
     }
 
+    async fn monitor_tunnel_status(
+        metrics: Arc<MetricsCollector>,
+        config: Config,
+        shutdown: Arc<AtomicBool>,
+    ) {
+        info!("Starting tunnel status monitoring");
+
+        let mut interval = tokio::time::interval(Duration::from_secs(60)); // Check every minute
+        interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+
+        while !shutdown.load(Ordering::Relaxed) {
+            interval.tick().await;
+
+            let mut status_report = String::new();
+            let mut active_count = 0;
+            let mut total_count = 0;
+
+            for tunnel_config in &config.tunnels {
+                total_count += 1;
+
+                // Check if tunnel is actively running
+                let stats_map = metrics.get_summary();
+                let stats = stats_map.get(&tunnel_config.name);
+                let is_connected = stats
+                    .as_ref()
+                    .map(|s| s.status == TunnelStatus::Connected)
+                    .unwrap_or(false);
+                let attempts = stats.as_ref().map(|s| s.reconnect_count).unwrap_or(0);
+
+                if is_connected {
+                    active_count += 1;
+                    status_report.push_str(&format!(
+                        "  ✓ {} → {}:{} (Active)\n",
+                        tunnel_config.name, config.gate.host, tunnel_config.remote_port
+                    ));
+                } else if attempts > 0 {
+                    status_report.push_str(&format!(
+                        "  ⚠ {} → {}:{} (Reconnecting, {} attempts)\n",
+                        tunnel_config.name, config.gate.host, tunnel_config.remote_port, attempts
+                    ));
+                } else {
+                    status_report.push_str(&format!(
+                        "  ✗ {} → {}:{} (Inactive)\n",
+                        tunnel_config.name, config.gate.host, tunnel_config.remote_port
+                    ));
+                }
+            }
+
+            info!(
+                "Tunnel Status Report ({}/{} active):\n{}",
+                active_count, total_count, status_report
+            );
+        }
+
+        info!("Tunnel status monitoring stopped");
+    }
+
     async fn manage_ssh_cli_tunnel(
         tunnel: Tunnel,
         ssh_config: crate::config::SshConfig,
         metrics: Arc<MetricsCollector>,
         connection_limiter: Arc<Mutex<ConnectionLimiter>>,
-        shutdown: Arc<Mutex<bool>>,
+        shutdown: Arc<AtomicBool>,
     ) {
         let mut delay = Duration::from_secs(1);
         let mut tunnel_metrics = TunnelMetrics {
@@ -217,11 +285,28 @@ impl TunnelManager {
             last_error: None,
         };
 
+        let server_display = get_server_display_name(&ssh_config.host, &ssh_config.server_name);
+
+        info!(
+            "Tunnel '{}' -> {} (Direction: {}) - Initializing connection",
+            tunnel.id,
+            server_display,
+            if tunnel.direction == TunnelDirection::Send {
+                "LocalPush"
+            } else {
+                "RemotePull"
+            }
+        );
+
         metrics.update_tunnel_status(&tunnel.id, TunnelStatus::Connecting);
 
         loop {
-            if *shutdown.lock().unwrap() {
-                info!("Shutting down tunnel: {}", tunnel.id);
+            if shutdown.load(Ordering::Relaxed) {
+                info!(
+                    "Tunnel '{}' -> {} - Shutting down",
+                    tunnel.id, server_display
+                );
+                metrics.update_tunnel_status(&tunnel.id, TunnelStatus::Disconnected);
                 break;
             }
 
@@ -233,20 +318,29 @@ impl TunnelManager {
 
             if !can_attempt {
                 warn!(
-                    "Rate limit exceeded for host {}, waiting...",
-                    ssh_config.host
+                    "Tunnel '{}' -> {} - Rate limit exceeded, waiting to retry...",
+                    tunnel.id, server_display
                 );
                 metrics.update_tunnel_status(&tunnel.id, TunnelStatus::Error);
                 time::sleep(Duration::from_secs(60)).await;
                 continue;
             }
 
-            // Log establishment attempt
-            info!(
-                "Establishing tunnel: {}, attempt={}",
-                tunnel.id,
-                tunnel_metrics.reconnect_count + 1
-            );
+            // Log establishment attempt with clear status
+            tunnel_metrics.reconnect_count += 1;
+            if tunnel_metrics.reconnect_count == 1 {
+                info!(
+                    "Tunnel '{}' -> {} - Establishing connection...",
+                    tunnel.id, server_display
+                );
+            } else {
+                warn!(
+                    "Tunnel '{}' -> {} - Reconnecting (attempt #{}) after disconnection",
+                    tunnel.id, server_display, tunnel_metrics.reconnect_count
+                );
+            }
+
+            metrics.update_tunnel_status(&tunnel.id, TunnelStatus::Connecting);
 
             // Log direction-specific details
             let server_display =
@@ -272,17 +366,31 @@ impl TunnelManager {
                 Ok(_) => {
                     tunnel_metrics.last_error = None;
                     delay = Duration::from_secs(1);
-                    info!("Tunnel {} completed normally", tunnel.id);
+                    warn!(
+                        "Tunnel '{}' -> {} - Connection terminated normally, preparing to reconnect...",
+                        tunnel.id, server_display
+                    );
+                    metrics.update_tunnel_status(&tunnel.id, TunnelStatus::Disconnected);
                 }
                 Err(e) => {
-                    tunnel_metrics.reconnect_count += 1;
                     tunnel_metrics.last_error = Some(e.to_string());
-                    error!("Tunnel {} error: {}", tunnel.id, e);
+                    error!(
+                        "Tunnel '{}' -> {} - Connection failed: {}",
+                        tunnel.id, server_display, e
+                    );
                     metrics.update_tunnel_status(&tunnel.id, TunnelStatus::Error);
+
+                    // Show retry information
+                    info!(
+                        "Tunnel '{}' -> {} - Will retry in {} seconds...",
+                        tunnel.id,
+                        server_display,
+                        delay.as_secs()
+                    );
                 }
             }
 
-            if !*shutdown.lock().unwrap() {
+            if !shutdown.load(Ordering::Relaxed) {
                 warn!("Reconnecting tunnel {} in {}s", tunnel.id, delay.as_secs());
                 metrics.update_tunnel_status(&tunnel.id, TunnelStatus::Connecting);
                 time::sleep(delay).await;
@@ -297,9 +405,17 @@ impl TunnelManager {
         tunnel: &Tunnel,
         ssh_config: &crate::config::SshConfig,
         metrics: &Arc<MetricsCollector>,
-        shutdown: &Arc<Mutex<bool>>,
+        shutdown: &Arc<AtomicBool>,
     ) -> Result<()> {
+        let server_display = get_server_display_name(&ssh_config.host, &ssh_config.server_name);
+
         metrics.update_tunnel_status(&tunnel.id, TunnelStatus::Connected);
+
+        // Log successful connection establishment
+        info!(
+            "Tunnel '{}' -> {} - Connection established successfully ✓",
+            tunnel.id, server_display
+        );
 
         let mut ssh_args = vec![
             "-N".to_string(), // Don't execute remote command
@@ -349,29 +465,38 @@ impl TunnelManager {
             .spawn()
             .context("Failed to start tunnel process")?;
 
-        info!("Tunnel established");
-
         // Wait for shutdown or process exit
         loop {
-            if *shutdown.lock().unwrap() {
-                info!("Shutdown signal received, terminating tunnel process");
+            if shutdown.load(Ordering::Relaxed) {
+                info!(
+                    "Tunnel '{}' -> {} - Shutdown signal received, terminating process",
+                    tunnel.id, server_display
+                );
                 let _ = ssh_process.kill().await;
                 break;
             }
 
-            // Check if SSH process is still running
+            // Check if process is still running
             match ssh_process.try_wait() {
                 Ok(Some(status)) => {
+                    warn!(
+                        "Tunnel '{}' -> {} - Process terminated (status: {}), connection lost",
+                        tunnel.id, server_display, status
+                    );
                     return Err(anyhow::anyhow!(
-                        "Tunnel process exited with status: {}",
+                        "Connection process exited with status: {}",
                         status
                     ));
                 }
                 Ok(None) => {
-                    // Process still running, continue
-                    time::sleep(Duration::from_millis(100)).await;
+                    // Process still running, continue monitoring
+                    time::sleep(Duration::from_millis(500)).await;
                 }
                 Err(e) => {
+                    error!(
+                        "Tunnel '{}' -> {} - Failed to monitor process: {}",
+                        tunnel.id, server_display, e
+                    );
                     return Err(anyhow::anyhow!(
                         "Failed to check tunnel process status: {}",
                         e
